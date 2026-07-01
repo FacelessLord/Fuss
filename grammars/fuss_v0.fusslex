@@ -1,0 +1,49 @@
+COMMENT = \/\/.*
+
+FUNC = func
+RETURN = return
+CONST = const
+LET = let
+
+OPEN_PAREN = \(
+CLOSED_PAREN = \)
+OPEN_BRACE = \{
+CLOSED_BRACE = \}
+OPEN_BRACKET = \[
+CLOSED_BRACKET = \]
+SEMICOLON = ;
+COLON = :
+COMMA = ,
+DOT = \.
+
+EQUAL_COMP = \=\=
+NOT_EQUAL_COMP = \!\=
+GT_COMP = >
+GT_EQUAL_COMP = >\=
+LT_COMP = <
+LT_EQUAL_COMP = <\=
+
+PLUS = \+
+MINUS = \-
+ASTERISK = \*
+SLASH = \/
+WIDE_AND = &&
+AND = &
+WIDE_OR = \|\|
+OR = \|
+XOR = \^
+NOT = \!
+
+SET = \=
+
+BOOLEAN = true
+BOOLEAN = false
+IDENTIFIER = [a-zA-Z_][a-zA-Z0-9_]*
+NUMBER = (\+\-)?\d+
+STRING = ''|'.*?[^\\]'
+STRING = ""|".*?[^\\]"
+
+#FALLBACK UNTERMINATED_STRING = ''|'.*[^\\]
+#FALLBACK UNTERMINATED_STRING = ""|".*[^\\]
+
+
