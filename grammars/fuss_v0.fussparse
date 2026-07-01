@@ -1,0 +1,56 @@
+
+stmt = let_def
+stmt = func_def
+
+expression_list = expr COMMA expression_list
+expression_list = expr
+expr = OPEN_PAREN expr CLOSED_PAREN
+expr = literal
+expr = literal
+expr = and_expr
+
+literal = NUMBER | BOOLEAN | STRING
+
+and_expr = or_expr WIDE_AND and_expr
+and_expr = or_expr AND and_expr
+and_expr = or_expr
+or_expr = comparison_expr WIDE_OR or_expr
+or_expr = comparison_expr OR or_expr
+or_expr = comparison_expr XOR or_expr
+or_expr = comparison_expr
+
+comparison_expr = addition_expr EQUAL_COMP addition_expr
+comparison_expr = addition_expr NOT_EQUAL_COMP addition_expr
+comparison_expr = addition_expr GT_COMP addition_expr
+comparison_expr = addition_expr GT_EQUAL_COMP addition_expr
+comparison_expr = addition_expr LT_COMP addition_expr
+comparison_expr = addition_expr LT_EQUAL_COMP addition_expr
+comparison_expr = addition_expr
+
+addition_expr = multiplication_expr PLUS addition_expr
+addition_expr = multiplication_expr MINUS addition_expr
+addition_expr = multiplication_expr
+
+multiplication_expr = unary_expr ASTERISK multiplication_expr
+multiplication_expr = unary_expr SLASH multiplication_expr
+multiplication_expr = unary_expr
+
+unary_expr = NOT unary_expr
+unary_expr = MINUS unary_expr
+unary_expr = value_def
+
+value_def = index_access | function_call | symbol_access | let_def | array_def
+
+let_def = LET IDENTIFIER SET expr
+func_def = FUNC IDENTIFIER OPEN_PAREN args_list CLOSED_PAREN
+args_list = args_list COMMA IDENTIFIER | IDENTIFIER
+
+index_access = expr OPEN_BRACKET expression_list CLOSED_BRACKET
+function_call = expr OPEN_PAREN function_call_args CLOSED_PAREN | expr OPEN_PAREN CLOSED_PAREN
+array_def = OPEN_BRACKET expression_list CLOSED_BRACKET | OPEN_BRACKET CLOSED_BRACKET
+symbol_access = symbol_access DOT IDENTIFIER
+symbol_access = expr
+
+
+
+
