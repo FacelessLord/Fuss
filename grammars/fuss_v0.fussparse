@@ -1,22 +1,29 @@
+code = stmt_list
+stmt_list = stmt_list stmt | stmt
 
-stmt = let_def
-stmt = func_def
+stmt = let_def SEMICOLON
+stmt = func_def SEMICOLON
+stmt = func_def SEMICOLON
+stmt = if_def
+stmt = scope_def
 
-expression_list = expr COMMA expression_list
+expression_list = expression_list COMMA expr
 expression_list = expr
 expr = OPEN_PAREN expr CLOSED_PAREN
 expr = literal
-expr = literal
+expr = IDENTIFIER
 expr = and_expr
 
-literal = NUMBER | BOOLEAN | STRING
+literal = NUMBER
+literal = BOOLEAN
+literal = STRING
 
-and_expr = or_expr WIDE_AND and_expr
-and_expr = or_expr AND and_expr
+and_expr = and_expr WIDE_AND or_expr
+and_expr = and_expr AND or_expr
 and_expr = or_expr
-or_expr = comparison_expr WIDE_OR or_expr
-or_expr = comparison_expr OR or_expr
-or_expr = comparison_expr XOR or_expr
+or_expr = or_expr WIDE_OR comparison_expr
+or_expr = or_expr OR comparison_expr
+or_expr = or_expr XOR comparison_expr
 or_expr = comparison_expr
 
 comparison_expr = addition_expr EQUAL_COMP addition_expr
@@ -27,27 +34,41 @@ comparison_expr = addition_expr LT_COMP addition_expr
 comparison_expr = addition_expr LT_EQUAL_COMP addition_expr
 comparison_expr = addition_expr
 
-addition_expr = multiplication_expr PLUS addition_expr
-addition_expr = multiplication_expr MINUS addition_expr
+addition_expr = addition_expr PLUS multiplication_expr
+addition_expr = addition_expr MINUS multiplication_expr
 addition_expr = multiplication_expr
 
-multiplication_expr = unary_expr ASTERISK multiplication_expr
-multiplication_expr = unary_expr SLASH multiplication_expr
+multiplication_expr = multiplication_expr ASTERISK unary_expr
+multiplication_expr = multiplication_expr SLASH unary_expr
 multiplication_expr = unary_expr
 
 unary_expr = NOT unary_expr
 unary_expr = MINUS unary_expr
 unary_expr = value_def
 
-value_def = index_access | function_call | symbol_access | let_def | array_def
+value_def = index_access
+value_def = function_call
+value_def = func_def
+value_def = symbol_access
+value_def = let_def
+value_def = array_def
 
 let_def = LET IDENTIFIER SET expr
-func_def = FUNC IDENTIFIER OPEN_PAREN args_list CLOSED_PAREN
-args_list = args_list COMMA IDENTIFIER | IDENTIFIER
+func_def = FUNC IDENTIFIER OPEN_PAREN args_list CLOSED_PAREN scope_def
+args_list = args_list COMMA IDENTIFIER
+args_list = IDENTIFIER
+
+if_def = if_def_stanalone
+if_def = if_def_stanalone ELSE scope_def
+if_def_stanalone = if OPEN_PAREN expr CLOSED_PAREN scope_def
+
+scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
 
 index_access = expr OPEN_BRACKET expression_list CLOSED_BRACKET
-function_call = expr OPEN_PAREN function_call_args CLOSED_PAREN | expr OPEN_PAREN CLOSED_PAREN
-array_def = OPEN_BRACKET expression_list CLOSED_BRACKET | OPEN_BRACKET CLOSED_BRACKET
+function_call = expr OPEN_PAREN expression_list CLOSED_PAREN
+function_call = expr OPEN_PAREN CLOSED_PAREN
+array_def = OPEN_BRACKET expression_list CLOSED_BRACKET
+array_def = OPEN_BRACKET CLOSED_BRACKET
 symbol_access = symbol_access DOT IDENTIFIER
 symbol_access = expr
 

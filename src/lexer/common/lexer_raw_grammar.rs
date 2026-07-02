@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Error, Read};
 
@@ -13,7 +14,9 @@ pub struct LexerRawGrammarRule {
 
 const FALLBACK_MODIFIER: &str = "#FALLBACK ";
 
-pub fn read_raw_lexer_grammar(filename: &String) -> Result<LexerRawGrammar, Error> {
+pub fn read_raw_lexer_grammar(
+    filename: &String,
+) -> Result<(LexerRawGrammar, HashSet<String>), Error> {
     let mut file = File::open(filename)?;
     let mut buffer = String::new();
 
@@ -36,5 +39,10 @@ pub fn read_raw_lexer_grammar(filename: &String) -> Result<LexerRawGrammar, Erro
         })
         .collect::<Vec<LexerRawGrammarRule>>();
 
-    Ok(LexerRawGrammar { rules })
+    let alphabet = rules
+        .iter()
+        .map(|x| x.name.clone())
+        .collect::<HashSet<String>>();
+
+    Ok((LexerRawGrammar { rules }, alphabet))
 }

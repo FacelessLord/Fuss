@@ -7,10 +7,10 @@ pub struct ParserRawGrammar {
 
 pub struct ParserRawGrammarRule {
     pub name: String,
-    pub expression: String,
+    pub production: Vec<String>,
 }
 
-pub fn read_raw_lexer_grammar(filename: &String) -> Result<ParserRawGrammar, Error> {
+pub fn read_raw_parser_grammar(filename: &String) -> Result<ParserRawGrammar, Error> {
     let mut file = File::open(filename)?;
     let mut buffer = String::new();
 
@@ -23,7 +23,10 @@ pub fn read_raw_lexer_grammar(filename: &String) -> Result<ParserRawGrammar, Err
             let split = x.split(" = ").collect::<Vec<&str>>();
             ParserRawGrammarRule {
                 name: split[0].to_string(),
-                expression: String::from(split[1]),
+                production: split[1]
+                    .split(" ")
+                    .map(|x| String::from(x))
+                    .collect::<Vec<_>>(),
             }
         })
         .collect::<Vec<ParserRawGrammarRule>>();

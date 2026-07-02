@@ -2,14 +2,16 @@ use crate::char_len;
 use crate::lexer::common::lexer::{Lexer, LexerError, Position, Token};
 use crate::lexer::common::lexer_raw_grammar::read_raw_lexer_grammar;
 use crate::lexer::lexer_regex_grammar::{
-    LexerRegexGrammar, LexerRegexGrammarRule, process_grammar,
+    process_grammar, LexerRegexGrammar, LexerRegexGrammarRule,
 };
 use regex::Regex;
+use std::collections::HashSet;
 use std::io::Error;
 use std::string::ToString;
 
 pub struct RegexLexer {
     grammar: LexerRegexGrammar,
+    alphabet: HashSet<String>,
 }
 
 impl Lexer for RegexLexer {
@@ -79,12 +81,26 @@ impl Lexer for RegexLexer {
             }
             line_number += 1;
         }
+        tokens.push(Token {
+            text: "".to_string(),
+            kind: "eof".to_string(),
+            position: Position {
+                filename: filename.clone(),
+                line: line_number + 1,
+                column: 0,
+            },
+            is_fallback: false,
+        });
 
         (tokens, errors)
     }
 }
 
-fn match_rules<'a>(buffer: &String, rules: &'a Vec<LexerRegexGrammarRule>, empty_rule: &'a LexerRegexGrammarRule) -> (&'a LexerRegexGrammarRule, usize) {
+fn match_rules<'a>(
+    buffer: &String,
+    rules: &'a Vec<LexerRegexGrammarRule>,
+    empty_rule: &'a LexerRegexGrammarRule,
+) -> (&'a LexerRegexGrammarRule, usize) {
     let mut max_rule = empty_rule;
     // size in bytes for matched string
     let mut max_len = 0;
@@ -102,10 +118,11 @@ fn match_rules<'a>(buffer: &String, rules: &'a Vec<LexerRegexGrammarRule>, empty
 
 pub fn create_regex_lexer_from_grammar(grammar_filename: &String) -> Result<RegexLexer, Error> {
     let filename = String::from(grammar_filename);
-    let grammar = read_raw_lexer_grammar(&filename)?;
+    let (grammar, alphabet) = read_raw_lexer_grammar(&filename)?;
     let regex_grammar = process_grammar(grammar);
 
     Ok(RegexLexer {
         grammar: regex_grammar,
+        alphabet,
     })
 }

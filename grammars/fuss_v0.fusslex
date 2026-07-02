@@ -4,6 +4,10 @@ FUNC = func
 RETURN = return
 CONST = const
 LET = let
+IF = if
+ELSE = else
+WHILE = while
+BREAK = break
 
 OPEN_PAREN = \(
 CLOSED_PAREN = \)
