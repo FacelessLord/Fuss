@@ -6,11 +6,32 @@ pub struct Position {
     pub column: usize,
 }
 
+impl Position {
+    pub fn clone(&self) -> Position {
+        Position {
+            filename: self.filename.clone(),
+            line: self.line,
+            column: self.column,
+        }
+    }
+}
+
 pub struct Token {
     pub text: String,
     pub kind: String,
     pub position: Position,
     pub is_fallback: bool,
+}
+
+impl Token {
+    pub(crate) fn clone(&self) -> Token {
+        Token {
+            text: self.text.clone(),
+            kind: self.kind.clone(),
+            position: self.position.clone(),
+            is_fallback: self.is_fallback,
+        }
+    }
 }
 
 impl Token {
@@ -39,7 +60,7 @@ impl LexerError {
         )
     }
 
-    pub fn create_error(message: String, position: Position) -> LexerError {
+    pub fn new(message: String, position: Position) -> LexerError {
         LexerError { position, message }
     }
 }

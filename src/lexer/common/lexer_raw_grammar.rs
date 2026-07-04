@@ -39,10 +39,11 @@ pub fn read_raw_lexer_grammar(
         })
         .collect::<Vec<LexerRawGrammarRule>>();
 
-    let alphabet = rules
+    let mut alphabet = rules
         .iter()
         .map(|x| x.name.clone())
         .collect::<HashSet<String>>();
+    alphabet.insert(String::from("eof"));
 
     Ok((LexerRawGrammar { rules }, alphabet))
 }

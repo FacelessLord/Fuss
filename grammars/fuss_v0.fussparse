@@ -1,5 +1,6 @@
 code = stmt_list
-stmt_list = stmt_list stmt | stmt
+stmt_list = stmt_list stmt
+stmt_list = stmt
 
 stmt = let_def SEMICOLON
 stmt = func_def SEMICOLON
@@ -60,7 +61,7 @@ args_list = IDENTIFIER
 
 if_def = if_def_stanalone
 if_def = if_def_stanalone ELSE scope_def
-if_def_stanalone = if OPEN_PAREN expr CLOSED_PAREN scope_def
+if_def_stanalone = IF OPEN_PAREN expr CLOSED_PAREN scope_def
 
 scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
 

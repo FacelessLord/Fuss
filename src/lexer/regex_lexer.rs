@@ -11,7 +11,7 @@ use std::string::ToString;
 
 pub struct RegexLexer {
     grammar: LexerRegexGrammar,
-    alphabet: HashSet<String>,
+    pub alphabet: HashSet<String>,
 }
 
 impl Lexer for RegexLexer {
@@ -60,7 +60,7 @@ impl Lexer for RegexLexer {
                 }
 
                 if max_rule.name == empty_rule.name {
-                    errors.push(LexerError::create_error(
+                    errors.push(LexerError::new(
                         format!("unknown char sequence \"{0}\"", buffer),
                         position,
                     ));

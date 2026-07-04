@@ -1,6 +1,8 @@
-use crate::parser::parser_raw_grammar::ParserRawGrammar;
+use crate::parser::parser_raw_grammar::{ParserRawGrammar, read_raw_parser_grammar};
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::fs::File;
 use std::hash::{Hash, Hasher};
+use std::io::{Error, Read};
 
 pub struct LR0ParserItem {
     source: String,
@@ -81,7 +83,7 @@ impl LR1ParserItem {
 
     fn consume_token(&self, token: String) -> Option<LR1ParserItem> {
         let next_token = self.get_next_token();
-        if (next_token? != token) {
+        if next_token? != token {
             return None;
         }
 
@@ -117,7 +119,7 @@ impl LR0GotoTable {
         }
     }
     fn add_entry(&mut self, start: usize, token: String, target: usize) {
-        if (!self.maps.contains_key(&start)) {
+        if !self.maps.contains_key(&start) {
             self.maps.insert(start, HashMap::new());
         }
         let available_connections = self.maps.get_mut(&start).unwrap();
@@ -131,7 +133,7 @@ impl LR0GotoTable {
         }
     }
     fn add_reduces(&mut self, start: usize, lookaheads: &HashSet<String>, rule: usize) {
-        if (!self.maps.contains_key(&start)) {
+        if !self.maps.contains_key(&start) {
             self.maps.insert(start, HashMap::new());
         }
         let available_connections = self.maps.get_mut(&start).unwrap();
@@ -148,8 +150,8 @@ impl LR0GotoTable {
 }
 
 pub struct LR1Automata {
-    grammar: ParserRawGrammar,
-    goto_table: Vec<HashMap<String, LR1ParserAction>>,
+    pub grammar: ParserRawGrammar,
+    pub goto_table: Vec<HashMap<String, LR1ParserAction>>,
 }
 
 pub enum LR1ParserAction {
@@ -157,6 +159,16 @@ pub enum LR1ParserAction {
     Shift(usize),
     // Reduce(reduction rule id)
     Reduce(usize),
+}
+
+pub fn build_automata_from_grammar(
+    token_alphabet: &HashSet<String>,
+    filename: String,
+) -> Result<LR1Automata, Error> {
+    let grammar = read_raw_parser_grammar(&filename)?;
+    let starting_rule = grammar.rules[0].name.clone();
+
+    Ok(build_automata(token_alphabet, grammar, starting_rule))
 }
 
 pub fn build_automata(
@@ -168,7 +180,11 @@ pub fn build_automata(
         build_automata_states(token_alphabet, &grammar, start_non_terminal);
 
     for (state_id, state) in all_states.iter().enumerate() {
-        let rules_for_reducing = state.iter().enumerate().filter(|(i, x)| x.get_next_token().is_none()).collect::<Vec<_>>();
+        let rules_for_reducing = state
+            .iter()
+            .enumerate()
+            .filter(|(_i, x)| x.get_next_token().is_none())
+            .collect::<Vec<_>>();
         for (reduction_rule_id, rule) in rules_for_reducing {
             goto_table.add_reduces(state_id, &rule.lookahead, reduction_rule_id);
         }
@@ -177,7 +193,6 @@ pub fn build_automata(
     for (state_id, available_connections) in goto_table.maps {
         vector_goto_table[state_id] = available_connections;
     }
-
 
     LR1Automata {
         goto_table: vector_goto_table,
@@ -234,7 +249,7 @@ fn create_starting_state(
         .rules
         .iter()
         .enumerate()
-        .filter(|(i, x)| x.name == start_non_terminal)
+        .filter(|(_i, x)| x.name == start_non_terminal)
         .map(|(i, x)| LR1ParserItem {
             source: x.name.clone(),
             production: x.production.clone(),
@@ -345,15 +360,17 @@ fn construct_follow_for_state(
 
     for item in items {
         let next_token = item.get_next_token();
-        if (next_token.is_none()) {
+        if next_token.is_none() {
             continue;
         }
         let marked_token = next_token.unwrap();
         // Marker is on the last token of production
         // Then follow(B) U= follow(A)
-        if (item.marker_pos == item.production.len() - 1) {
-            let source_follow = follow.get(&item.source).unwrap().clone();
-            let current_follow = follow.get_mut(&marked_token).unwrap();
+        if item.marker_pos == item.production.len() - 1 {
+            let source_follow =
+                get_or_default(&mut follow, item.source.clone(), HashSet::new()).clone();
+            let current_follow =
+                get_mut_or_default(&mut follow, marked_token.clone(), HashSet::new());
             for follow_item in source_follow {
                 current_follow.insert(follow_item.to_string());
             }
@@ -361,8 +378,13 @@ fn construct_follow_for_state(
             // A -> aBb, b is not empty
             // follow(B) U= first(b)
             let token_after_marked_one = item.production[item.marker_pos + 1].clone();
-            let next_token_first = first.get(&token_after_marked_one).unwrap().clone();
-            let current_follow = follow.get_mut(&marked_token).unwrap();
+            let next_token_first = first
+                .get(&token_after_marked_one)
+                .or(Some(&HashSet::new()))
+                .unwrap()
+                .clone();
+            let current_follow =
+                get_mut_or_default(&mut follow, marked_token.clone(), HashSet::new());
             for follow_item in next_token_first {
                 current_follow.insert(follow_item.to_string());
             }
@@ -370,6 +392,25 @@ fn construct_follow_for_state(
     }
 
     follow
+}
+
+fn get_or_default<'a, T>(hashmap: &'a mut HashMap<String, T>, key: String, default: T) -> &'a T {
+    if hashmap.contains_key(&key) {
+        return hashmap.get(&key).unwrap();
+    }
+    hashmap.insert(key.clone(), default);
+    hashmap.get(&key).unwrap()
+}
+fn get_mut_or_default<'a, T>(
+    hashmap: &'a mut HashMap<String, T>,
+    key: String,
+    default: T,
+) -> &'a mut T {
+    if hashmap.contains_key(&key) {
+        return hashmap.get_mut(&key).unwrap();
+    }
+    hashmap.insert(key.clone(), default);
+    hashmap.get_mut(&key).unwrap()
 }
 
 fn construct_first_for_state(
@@ -380,6 +421,7 @@ fn construct_first_for_state(
 
     // Later non-terminals B may refer to earlier ones A making first(B) dependent on first(A) requiring at least one more iteration
     let mut first_changed = true;
+    let empty_hashset = HashSet::new();
     while first_changed {
         first_changed = false;
 
@@ -397,27 +439,30 @@ fn construct_first_for_state(
                 }
             } else {
                 let mut intermediate_first = HashSet::from([first_letter.clone()]);
-                let mut non_terminals = (&intermediate_first)
+                let mut non_terminals = intermediate_first
                     .iter()
-                    .filter(|x| !token_alphabet.contains(&first_letter))
+                    .filter(|x| !token_alphabet.contains(*x))
                     .map(|x| x.clone())
-                    .collect::<Vec<String>>();
+                    .collect::<HashSet<String>>();
 
                 while non_terminals.len() > 0 {
                     let recursive_first = non_terminals
                         .iter()
-                        .flat_map(|x| first.get(x).unwrap())
+                        .flat_map(|x| first.get(x).or(Some(&empty_hashset)).unwrap())
                         .map(|x| x.clone())
                         .collect::<HashSet<String>>();
                     intermediate_first = intermediate_first
+                        .difference(&non_terminals)
+                        .cloned()
+                        .collect::<HashSet<String>>()
                         .union(&recursive_first)
                         .map(|x| x.clone())
                         .collect::<HashSet<_>>();
-                    non_terminals = (&intermediate_first)
+                    non_terminals = intermediate_first
                         .iter()
-                        .filter(|x| !token_alphabet.contains(&first_letter))
+                        .filter(|x| !token_alphabet.contains(*x))
                         .map(|x| x.clone())
-                        .collect::<Vec<String>>();
+                        .collect::<HashSet<String>>();
                 }
                 let current_first = first.get_mut(&item.source).unwrap();
 
