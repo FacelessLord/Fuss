@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Error, Read};
+use crate::lexer::common::lexer::EOF;
 
 pub struct LexerRawGrammar {
     pub rules: Vec<LexerRawGrammarRule>,
@@ -43,7 +44,7 @@ pub fn read_raw_lexer_grammar(
         .iter()
         .map(|x| x.name.clone())
         .collect::<HashSet<String>>();
-    alphabet.insert(String::from("eof"));
+    alphabet.insert(String::from(EOF));
 
     Ok((LexerRawGrammar { rules }, alphabet))
 }

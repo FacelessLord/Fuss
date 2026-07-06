@@ -1,0 +1,5 @@
+stmt = expr EOF
+expr = expr ASTERISK term
+expr = expr PLUS term
+expr = term
+term = NUMBER

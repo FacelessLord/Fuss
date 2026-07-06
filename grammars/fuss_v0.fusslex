@@ -47,7 +47,7 @@ NUMBER = (\+\-)?\d+
 STRING = ''|'.*?[^\\]'
 STRING = ""|".*?[^\\]"
 
-#FALLBACK UNTERMINATED_STRING = ''|'.*[^\\]
-#FALLBACK UNTERMINATED_STRING = ""|".*[^\\]
+#FALLBACK UNTERMINATED_STRING = '.+*[^']$
+#FALLBACK UNTERMINATED_STRING = ".+*[^"]$
 
 

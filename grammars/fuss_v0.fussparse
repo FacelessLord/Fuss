@@ -1,23 +1,42 @@
-code = stmt_list
-stmt_list = stmt_list stmt
+code = stmt_list EOF
 stmt_list = stmt
+stmt_list = stmt_list stmt
 
 stmt = let_def SEMICOLON
-stmt = func_def SEMICOLON
-stmt = func_def SEMICOLON
+stmt = func_def
 stmt = if_def
+stmt = while_def
 stmt = scope_def
+stmt = return_stmt SEMICOLON
+stmt = postfix_expr SEMICOLON
+stmt = assign_stmt SEMICOLON
+
+let_def = LET IDENTIFIER SET expr
+func_def = FUNC IDENTIFIER OPEN_PAREN args_list CLOSED_PAREN scope_def
+func_def = FUNC IDENTIFIER OPEN_PAREN CLOSED_PAREN scope_def
+args_list = args_list COMMA IDENTIFIER
+args_list = IDENTIFIER
+
+if_def = if_def_stanalone
+if_def = if_def_stanalone ELSE scope_def
+if_def_stanalone = IF OPEN_PAREN expr CLOSED_PAREN scope_def
+
+while_def = WHILE OPEN_PAREN expr CLOSED_PAREN scope_def
+
+scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
+
+return_stmt = RETURN expr
+
+assign_stmt = postfix_expr SET expr
 
 expression_list = expression_list COMMA expr
 expression_list = expr
-expr = OPEN_PAREN expr CLOSED_PAREN
-expr = literal
-expr = IDENTIFIER
 expr = and_expr
 
 literal = NUMBER
 literal = BOOLEAN
 literal = STRING
+literal = UNTERMINATED_STRING
 
 and_expr = and_expr WIDE_AND or_expr
 and_expr = and_expr AND or_expr
@@ -45,34 +64,18 @@ multiplication_expr = unary_expr
 
 unary_expr = NOT unary_expr
 unary_expr = MINUS unary_expr
-unary_expr = value_def
+unary_expr = postfix_expr
 
-value_def = index_access
-value_def = function_call
-value_def = func_def
-value_def = symbol_access
-value_def = let_def
-value_def = array_def
+postfix_expr = primary_expr
+postfix_expr = postfix_expr DOT IDENTIFIER
+postfix_expr = postfix_expr OPEN_BRACKET expression_list CLOSED_BRACKET
+postfix_expr = postfix_expr OPEN_PAREN expression_list CLOSED_PAREN
+postfix_expr = postfix_expr OPEN_PAREN CLOSED_PAREN
 
-let_def = LET IDENTIFIER SET expr
-func_def = FUNC IDENTIFIER OPEN_PAREN args_list CLOSED_PAREN scope_def
-args_list = args_list COMMA IDENTIFIER
-args_list = IDENTIFIER
+primary_expr = literal
+primary_expr = IDENTIFIER
+primary_expr = OPEN_PAREN expr CLOSED_PAREN
+primary_expr = array_def
 
-if_def = if_def_stanalone
-if_def = if_def_stanalone ELSE scope_def
-if_def_stanalone = IF OPEN_PAREN expr CLOSED_PAREN scope_def
-
-scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
-
-index_access = expr OPEN_BRACKET expression_list CLOSED_BRACKET
-function_call = expr OPEN_PAREN expression_list CLOSED_PAREN
-function_call = expr OPEN_PAREN CLOSED_PAREN
 array_def = OPEN_BRACKET expression_list CLOSED_BRACKET
 array_def = OPEN_BRACKET CLOSED_BRACKET
-symbol_access = symbol_access DOT IDENTIFIER
-symbol_access = expr
-
-
-
-

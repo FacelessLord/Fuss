@@ -1,6 +1,5 @@
-use std::fmt::Debug;
 use crate::lexer::common::lexer::{Position, Token};
-use crate::parser::common::parser::ParserNode::Terminal;
+use std::fmt::Debug;
 
 pub enum ParserNode {
     NonTerminal {

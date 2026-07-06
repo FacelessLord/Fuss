@@ -1,0 +1,16 @@
+
+func main() {
+    let a = 1;
+    let b = 1;
+    let x = [1];
+
+     while(true) {
+        log(a);
+        x.push(a);
+        let c = a+b;
+        let d = b;
+        a = d;
+        b = c;
+     }
+     x[0] = 1;
+}

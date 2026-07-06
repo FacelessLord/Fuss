@@ -1,5 +1,5 @@
 use crate::char_len;
-use crate::lexer::common::lexer::{Lexer, LexerError, Position, Token};
+use crate::lexer::common::lexer::{Lexer, LexerError, Position, Token, EOF};
 use crate::lexer::common::lexer_raw_grammar::read_raw_lexer_grammar;
 use crate::lexer::lexer_regex_grammar::{
     process_grammar, LexerRegexGrammar, LexerRegexGrammarRule,
@@ -83,7 +83,7 @@ impl Lexer for RegexLexer {
         }
         tokens.push(Token {
             text: "".to_string(),
-            kind: "eof".to_string(),
+            kind: EOF.to_string(),
             position: Position {
                 filename: filename.clone(),
                 line: line_number + 1,

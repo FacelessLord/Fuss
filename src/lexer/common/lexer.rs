@@ -67,3 +67,5 @@ impl LexerError {
 pub trait Lexer {
     fn tokenize(&self, filename: &String, file: String) -> (Vec<Token>, Vec<LexerError>);
 }
+
+pub const EOF: &str = "EOF";

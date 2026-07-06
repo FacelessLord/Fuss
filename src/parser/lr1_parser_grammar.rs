@@ -18,7 +18,7 @@
 //     lexer_alphabet: &Vec<String>,
 // ) -> Vec<ParserGrammarToken> {
 //     let mut token_cache: HashMap<String, ParserGrammarToken> = HashMap::new();
-//     let eof_token = ParserGrammarToken::Terminal("eof".to_string());
+//     let eof_token = ParserGrammarToken::Terminal(EOF.to_string());
 //     token_cache.insert("eof".to_string(), eof_token);
 // 
 //     for token in lexer_alphabet {

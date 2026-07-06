@@ -1,21 +1,16 @@
+use crate::lexer::common::lexer::EOF;
 use crate::parser::parser_raw_grammar::{ParserRawGrammar, read_raw_parser_grammar};
+use ordermap::OrderSet;
+use ordermap::set::MutableValues;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::fs::File;
+use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
-use std::io::{Error, Read};
+use std::io::Error;
 
 pub struct LR0ParserItem {
     source: String,
     marker_pos: usize,
     production: Vec<String>,
-    rule_id: usize,
-}
-
-pub struct LR1ParserItem {
-    source: String,
-    marker_pos: usize,
-    production: Vec<String>,
-    lookahead: HashSet<String>,
     rule_id: usize,
 }
 
@@ -64,6 +59,13 @@ impl Hash for LR0ParserItem {
     }
 }
 
+pub struct LR1ParserItem {
+    source: String,
+    marker_pos: usize,
+    production: Vec<String>,
+    lookahead: HashSet<String>,
+    rule_id: usize,
+}
 impl LR1ParserItem {
     fn to_lr0(&self) -> LR0ParserItem {
         LR0ParserItem {
@@ -102,7 +104,29 @@ impl PartialEq for LR1ParserItem {
         self.source == other.source
             && self.marker_pos == other.marker_pos
             && self.production == other.production
-            && self.lookahead == other.lookahead
+    }
+}
+
+impl Eq for LR1ParserItem {}
+
+impl Hash for LR1ParserItem {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.source.hash(state);
+        self.marker_pos.hash(state);
+        self.production.hash(state);
+    }
+}
+
+impl Debug for LR1ParserItem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut production = self.production.clone();
+        production.insert(self.marker_pos, MARKER_CHARACTER.to_string());
+        write!(
+            f,
+            "{0} -> {1}, {}",
+            self.source,
+            production.join::<_>(&String::from(", "))
+        )
     }
 }
 
@@ -140,10 +164,23 @@ impl LR0GotoTable {
         for token in lookaheads {
             let result = available_connections.insert(token.clone(), LR1ParserAction::Reduce(rule));
             if result.is_some() {
-                println!(
-                    "Got some reduce overriding in {0} -({1})> {2}",
-                    start, token, rule
-                );
+                let some_result = result.unwrap();
+                match some_result {
+                    LR1ParserAction::Shift(_) => {
+                        println!(
+                            "Got some shift->reduce overriding in {0} -({1})> {2}",
+                            start, token, rule
+                        );
+                    }
+                    LR1ParserAction::Reduce(rule_number) => {
+                        if rule_number != rule {
+                            println!(
+                                "Got some reduce({0})->reduce({1}) overriding in {2} -({3})> {4}",
+                                rule_number, rule, start, token, rule
+                            );
+                        }
+                    }
+                }
             }
         }
     }
@@ -176,20 +213,33 @@ pub fn build_automata(
     grammar: ParserRawGrammar,
     start_non_terminal: String,
 ) -> LR1Automata {
-    let (all_states, mut goto_table) =
-        build_automata_states(token_alphabet, &grammar, start_non_terminal);
+    let (all_states, all_items, mut goto_table) =
+        build_automata_states(token_alphabet, &grammar, start_non_terminal.clone());
 
     for (state_id, state) in all_states.iter().enumerate() {
         let rules_for_reducing = state
             .iter()
-            .enumerate()
-            .filter(|(_i, x)| x.get_next_token().is_none())
+            .filter(|x| {
+                let item = all_items.get_index((*x).clone());
+                if item.is_none() {
+                    return false;
+                }
+                item.unwrap().get_next_token().is_none()
+            })
             .collect::<Vec<_>>();
-        for (reduction_rule_id, rule) in rules_for_reducing {
-            goto_table.add_reduces(state_id, &rule.lookahead, reduction_rule_id);
+        for rule_index in rules_for_reducing {
+            let rule_option = all_items.get_index(rule_index.clone());
+            if rule_option.is_none() {
+                continue;
+            }
+            let rule = rule_option.unwrap();
+            goto_table.add_reduces(state_id, &rule.lookahead, rule.rule_id);
         }
     }
     let mut vector_goto_table = Vec::with_capacity(goto_table.maps.len());
+    for _i in 0..goto_table.maps.len() {
+        vector_goto_table.push(HashMap::new());
+    }
     for (state_id, available_connections) in goto_table.maps {
         vector_goto_table[state_id] = available_connections;
     }
@@ -204,26 +254,36 @@ fn build_automata_states(
     token_alphabet: &HashSet<String>,
     grammar: &ParserRawGrammar,
     start_non_terminal: String,
-) -> (Vec<Vec<LR1ParserItem>>, LR0GotoTable) {
+) -> (OrderSet<Vec<usize>>, OrderSet<LR1ParserItem>, LR0GotoTable) {
     let starting_state = create_starting_state(token_alphabet, grammar, start_non_terminal);
-    let mut all_states = Vec::new();
-    all_states.push(starting_state);
+    let mut all_items = OrderSet::<LR1ParserItem>::new();
+
+    let mut all_states = OrderSet::<Vec<usize>>::new(); //Vec::new();
+    let remapped_state = remap_state(starting_state, &mut all_items);
+    all_states.insert(remapped_state);
 
     let mut goto_table = LR0GotoTable::new();
     let mut queue = VecDeque::from([0]);
 
     while let Some(state_id) = queue.pop_front() {
-        let consumable_tokens = get_consumable_tokens(&all_states[state_id]);
+        println!("Got state {}", state_id);
+        let consumable_tokens = get_consumable_tokens(&all_states[state_id], &all_items);
         for token in consumable_tokens {
             let known_items = all_states[state_id]
                 .iter()
-                .filter_map(|x| x.consume_token(token.clone()))
+                .filter_map(|x| {
+                    all_items
+                        .get_index(x.clone())
+                        .and_then(|x| x.consume_token(token.clone()))
+                })
                 .collect::<Vec<LR1ParserItem>>();
-            let new_state = build_state_for_items(token_alphabet, grammar, known_items);
+            let new_state = remap_state(
+                build_state_for_items(token_alphabet, grammar, known_items),
+                &mut all_items,
+            );
 
             let new_state_id = all_states
-                .iter()
-                .position(|x| x == &new_state)
+                .get_index_of(&new_state)
                 .or(Some(all_states.len()))
                 .unwrap();
 
@@ -231,12 +291,34 @@ fn build_automata_states(
 
             // If it is indeed a new state
             if new_state_id == all_states.len() {
-                all_states.push(new_state);
+                all_states.insert(new_state);
                 queue.push_back(new_state_id);
             }
         }
     }
-    (all_states, goto_table)
+    (all_states, all_items, goto_table)
+}
+
+fn remap_state(state: Vec<LR1ParserItem>, all_items: &mut OrderSet<LR1ParserItem>) -> Vec<usize> {
+    let mut remapped_state = Vec::new();
+
+    for item in state {
+        if !all_items.contains(&item) {
+            remapped_state.push(all_items.len());
+            all_items.insert(item);
+        } else {
+            let item_index = all_items.get_index_of(&item).unwrap();
+            all_items
+                .get_index_mut2(item_index)
+                .unwrap()
+                .lookahead
+                .extend(item.lookahead.iter().cloned());
+            remapped_state.push(item_index);
+        }
+    }
+
+    remapped_state.sort();
+    remapped_state
 }
 
 fn create_starting_state(
@@ -254,7 +336,7 @@ fn create_starting_state(
             source: x.name.clone(),
             production: x.production.clone(),
             marker_pos: 0,
-            lookahead: HashSet::from(["eof".to_string()]),
+            lookahead: HashSet::new(),
             rule_id: i,
         })
         .collect::<Vec<LR1ParserItem>>();
@@ -262,10 +344,17 @@ fn create_starting_state(
     build_state_for_items(token_alphabet, grammar, known_items)
 }
 
-fn get_consumable_tokens(state: &Vec<LR1ParserItem>) -> HashSet<String> {
+fn get_consumable_tokens(
+    state: &Vec<usize>,
+    all_items: &OrderSet<LR1ParserItem>,
+) -> HashSet<String> {
     state
         .iter()
-        .filter_map(|item| item.get_next_token())
+        .filter_map(|item| {
+            all_items
+                .get_index(item.clone())
+                .and_then(|x| x.get_next_token())
+        })
         .collect::<HashSet<String>>()
 }
 
@@ -294,6 +383,7 @@ fn build_state_for_items(
         .collect::<Vec<LR0ParserItem>>();
     let lr0_state = construct_lr0_state(token_alphabet, grammar, known_lr0_state);
     let follow = construct_follow_for_state(&token_alphabet, known_follow, &lr0_state);
+
     let lr1_state = lr0_state
         .iter()
         .map(|x| x.to_lr1(follow.get(&x.source).unwrap().clone()))
@@ -357,36 +447,47 @@ fn construct_follow_for_state(
 ) -> HashMap<String, HashSet<String>> {
     let first = construct_first_for_state(token_alphabet, items);
     let mut follow = known_follow;
+    let mut follow_changed = true;
 
-    for item in items {
-        let next_token = item.get_next_token();
-        if next_token.is_none() {
-            continue;
-        }
-        let marked_token = next_token.unwrap();
-        // Marker is on the last token of production
-        // Then follow(B) U= follow(A)
-        if item.marker_pos == item.production.len() - 1 {
-            let source_follow =
-                get_or_default(&mut follow, item.source.clone(), HashSet::new()).clone();
-            let current_follow =
-                get_mut_or_default(&mut follow, marked_token.clone(), HashSet::new());
-            for follow_item in source_follow {
-                current_follow.insert(follow_item.to_string());
+    while follow_changed {
+        follow_changed = false;
+
+        for item in items {
+            let next_token = item.get_next_token();
+            if next_token.is_none() {
+                continue;
             }
-        } else {
-            // A -> aBb, b is not empty
-            // follow(B) U= first(b)
-            let token_after_marked_one = item.production[item.marker_pos + 1].clone();
-            let next_token_first = first
-                .get(&token_after_marked_one)
-                .or(Some(&HashSet::new()))
-                .unwrap()
-                .clone();
-            let current_follow =
-                get_mut_or_default(&mut follow, marked_token.clone(), HashSet::new());
-            for follow_item in next_token_first {
-                current_follow.insert(follow_item.to_string());
+            let marked_token = next_token.unwrap();
+            // Marker is on the last token of production
+            // Then follow(B) U= follow(A)
+            if item.marker_pos == item.production.len() - 1 {
+                let source_follow =
+                    get_or_default(&mut follow, item.source.clone(), HashSet::new()).clone();
+                let current_follow =
+                    get_mut_or_default(&mut follow, marked_token.clone(), HashSet::new());
+                for follow_item in source_follow {
+                    if !current_follow.contains(&follow_item) {
+                        current_follow.insert(follow_item.to_string());
+                        follow_changed = true;
+                    }
+                }
+            } else {
+                // A -> aBb, b is not empty
+                // follow(B) U= first(b)
+                let token_after_marked_one = item.production[item.marker_pos + 1].clone();
+                let next_token_first = first
+                    .get(&token_after_marked_one)
+                    .or(Some(&HashSet::new()))
+                    .unwrap()
+                    .clone();
+                let current_follow =
+                    get_mut_or_default(&mut follow, marked_token.clone(), HashSet::new());
+                for follow_item in next_token_first {
+                    if !current_follow.contains(&follow_item) {
+                        current_follow.insert(follow_item.to_string());
+                        follow_changed = true;
+                    }
+                }
             }
         }
     }
@@ -401,11 +502,10 @@ fn get_or_default<'a, T>(hashmap: &'a mut HashMap<String, T>, key: String, defau
     hashmap.insert(key.clone(), default);
     hashmap.get(&key).unwrap()
 }
-fn get_mut_or_default<'a, T>(
-    hashmap: &'a mut HashMap<String, T>,
-    key: String,
-    default: T,
-) -> &'a mut T {
+fn get_mut_or_default<T, K>(hashmap: &mut HashMap<K, T>, key: K, default: T) -> &mut T
+where
+    K: Eq + Hash + Clone,
+{
     if hashmap.contains_key(&key) {
         return hashmap.get_mut(&key).unwrap();
     }
@@ -418,6 +518,12 @@ fn construct_first_for_state(
     items: &Vec<LR0ParserItem>,
 ) -> HashMap<String, HashSet<String>> {
     let mut first = HashMap::<String, HashSet<String>>::new();
+
+    for terminal in token_alphabet {
+        let mut terminal_first = HashSet::new();
+        terminal_first.insert(terminal.clone());
+        first.insert(terminal.clone(), terminal_first);
+    }
 
     // Later non-terminals B may refer to earlier ones A making first(B) dependent on first(A) requiring at least one more iteration
     let mut first_changed = true;
