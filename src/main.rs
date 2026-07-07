@@ -1,14 +1,16 @@
+pub mod ast_builder;
 mod lexer;
 pub mod macros;
 pub mod parser;
 
-use std::fs::File;
-use std::io::Read;
-use log::debug;
+use crate::ast_builder::visitors::AstBuilder;
 use crate::lexer::common::lexer::Lexer;
 use crate::lexer::regex_lexer::create_regex_lexer_from_grammar;
 use crate::parser::lr1_automata_builder::build_automata_from_grammar;
 use crate::parser::lr1_parser::LR1Parser;
+use log::debug;
+use std::fs::File;
+use std::io::Read;
 
 fn main() {
     let filename = String::from("grammars/fuss_v0.fusslex");
@@ -19,15 +21,12 @@ fn main() {
     let mut parser = LR1Parser::new(automata);
 
     let filename = String::from("grammars/fibb.fuss");
-    let mut code_file = File::open(filename);
+    let mut code_file = File::open(filename.clone());
     let mut code_text = String::new();
 
     code_file.expect("").read_to_string(&mut code_text).unwrap();
 
-    let (tokens, errors) = lexer.tokenize(
-        &"tokens.fuss".to_string(),
-        code_text.to_string(),
-    );
+    let (tokens, errors) = lexer.tokenize(&filename, code_text.to_string());
 
     let lexing_error_list = errors
         .into_iter()
@@ -39,8 +38,7 @@ fn main() {
         panic!("Errors {}", lexing_error_list);
     }
 
-
-    let (parse_tree, errors)  = parser.parse(&tokens);
+    let (parse_tree, errors) = parser.parse(&tokens);
 
     let parse_error_list = errors
         .into_iter()
@@ -51,8 +49,11 @@ fn main() {
     if parse_error_list.len() > 0 {
         panic!("Errors {}", parse_error_list);
     }
+    let ast_builder = AstBuilder {};
 
-    debug!("parse_tree: {:?}", parse_tree);
+    let ast = ast_builder.visit_code(parse_tree).unwrap();
+
+    debug!("ast: {:?}", ast.span.0.filename);
 
     //
     // let token_list = tokens

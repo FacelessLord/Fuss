@@ -1,4 +1,5 @@
 use crate::char_len;
+use std::fmt::{Display, Formatter, Pointer};
 
 pub struct Position {
     pub filename: String,
@@ -13,6 +14,18 @@ impl Position {
             line: self.line,
             column: self.column,
         }
+    }
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{file}:{line}:{column}",
+            file = self.filename,
+            line = self.line,
+            column = self.column
+        )
     }
 }
 

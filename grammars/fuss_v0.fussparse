@@ -5,7 +5,7 @@ stmt_list = stmt_list stmt
 stmt = let_def SEMICOLON
 stmt = func_def
 stmt = if_def
-stmt = while_def
+stmt = while_stmt
 stmt = scope_def
 stmt = return_stmt SEMICOLON
 stmt = postfix_expr SEMICOLON
@@ -21,7 +21,7 @@ if_def = if_def_stanalone
 if_def = if_def_stanalone ELSE scope_def
 if_def_stanalone = IF OPEN_PAREN expr CLOSED_PAREN scope_def
 
-while_def = WHILE OPEN_PAREN expr CLOSED_PAREN scope_def
+while_stmt = WHILE OPEN_PAREN expr CLOSED_PAREN scope_def
 
 scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
 
@@ -34,6 +34,7 @@ expression_list = expr
 expr = and_expr
 
 literal = NUMBER
+literal_ = FLOAT_NUMBER
 literal = BOOLEAN
 literal = STRING
 literal = UNTERMINATED_STRING
