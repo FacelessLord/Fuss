@@ -2,6 +2,7 @@ pub mod ast_builder;
 mod lexer;
 pub mod macros;
 pub mod parser;
+pub mod collections;
 
 use crate::ast_builder::visitors::AstBuilder;
 use crate::lexer::common::lexer::Lexer;
