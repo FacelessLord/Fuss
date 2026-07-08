@@ -13,8 +13,7 @@ stmt = postfix_expr SEMICOLON
 stmt = assign_stmt SEMICOLON
 
 let_def = LET IDENTIFIER SET expr
-func_def = FUNC IDENTIFIER OPEN_PAREN args_list CLOSED_PAREN scope_def
-func_def = FUNC IDENTIFIER OPEN_PAREN CLOSED_PAREN scope_def
+func_def = FUNC IDENTIFIER OPEN_PAREN args_list? CLOSED_PAREN scope_def
 args_list = args_list COMMA IDENTIFIER
 args_list = IDENTIFIER
 
@@ -24,14 +23,7 @@ if_def_stanalone = IF OPEN_PAREN expr CLOSED_PAREN scope_def
 
 while_stmt = WHILE OPEN_PAREN expr CLOSED_PAREN scope_def
 
-for_stmt = FOR OPEN_PAREN let_def SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
-for_stmt = FOR OPEN_PAREN let_def SEMICOLON expr SEMICOLON  CLOSED_PAREN scope_def
-for_stmt = FOR OPEN_PAREN let_def SEMICOLON SEMICOLON expr CLOSED_PAREN scope_def
-for_stmt = FOR OPEN_PAREN let_def SEMICOLON SEMICOLON CLOSED_PAREN scope_def
-for_stmt = FOR OPEN_PAREN SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
-for_stmt = FOR OPEN_PAREN SEMICOLON expr SEMICOLON CLOSED_PAREN scope_def
-for_stmt = FOR OPEN_PAREN SEMICOLON SEMICOLON expr CLOSED_PAREN scope_def
-for_stmt = FOR OPEN_PAREN SEMICOLON SEMICOLON CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN let_def? SEMICOLON expr? SEMICOLON expr? CLOSED_PAREN scope_def
 
 scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
 
@@ -83,15 +75,13 @@ postfix_expr = postfix_expr DOT IDENTIFIER
 postfix_expr = postfix_expr INCREMENT
 postfix_expr = postfix_expr DECREMENT
 postfix_expr = postfix_expr OPEN_BRACKET expression_list CLOSED_BRACKET
-postfix_expr = postfix_expr OPEN_PAREN expression_list CLOSED_PAREN
-postfix_expr = postfix_expr OPEN_PAREN CLOSED_PAREN
+postfix_expr = postfix_expr OPEN_PAREN expression_list? CLOSED_PAREN
 
 primary_expr = literal
 primary_expr = IDENTIFIER
 primary_expr = OPEN_PAREN expr CLOSED_PAREN
 primary_expr = array_def
 
-array_def = OPEN_BRACKET expression_list CLOSED_BRACKET
-array_def = OPEN_BRACKET CLOSED_BRACKET
+array_def = OPEN_BRACKET expression_list? CLOSED_BRACKET
 
 empty_expr = nan

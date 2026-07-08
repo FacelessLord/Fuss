@@ -1,6 +1,6 @@
 use crate::collections::stable_ordered_set::StableOrderedSet;
 use crate::frontend_v0::parser::lr1_parser::LR1Parser;
-use crate::frontend_v0::parser::parser_raw_grammar::{ParserRawGrammar, read_raw_parser_grammar};
+use crate::frontend_v0::parser::parser_grammar::{read_parser_grammar, ParserGrammar};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
@@ -187,7 +187,7 @@ impl LR0GotoTable {
 }
 
 pub struct LR1Automata {
-    pub grammar: ParserRawGrammar,
+    pub grammar: ParserGrammar,
     pub goto_table: Vec<HashMap<String, LR1ParserAction>>,
 }
 
@@ -209,7 +209,7 @@ pub fn build_automata_from_grammar(
     token_alphabet: &HashSet<String>,
     filename: String,
 ) -> Result<LR1Automata, Error> {
-    let grammar = read_raw_parser_grammar(&filename)?;
+    let grammar = read_parser_grammar(&filename)?;
     let starting_rule = grammar.rules[0].name.clone();
 
     Ok(build_automata(token_alphabet, grammar, starting_rule))
@@ -217,7 +217,7 @@ pub fn build_automata_from_grammar(
 
 pub fn build_automata(
     token_alphabet: &HashSet<String>,
-    grammar: ParserRawGrammar,
+    grammar: ParserGrammar,
     start_non_terminal: String,
 ) -> LR1Automata {
     let (all_states, all_items, mut goto_table) =
@@ -259,7 +259,7 @@ pub fn build_automata(
 
 fn build_automata_states(
     token_alphabet: &HashSet<String>,
-    grammar: &ParserRawGrammar,
+    grammar: &ParserGrammar,
     start_non_terminal: String,
 ) -> (
     StableOrderedSet<Vec<usize>>,
@@ -337,7 +337,7 @@ fn remap_state(
 
 fn create_starting_state(
     token_alphabet: &HashSet<String>,
-    grammar: &ParserRawGrammar,
+    grammar: &ParserGrammar,
     start_non_terminal: String,
 ) -> Vec<LR1ParserItem> {
     // Starting non-terminal items
@@ -374,7 +374,7 @@ fn get_consumable_tokens(
 
 fn build_state_for_items(
     token_alphabet: &HashSet<String>,
-    grammar: &ParserRawGrammar,
+    grammar: &ParserGrammar,
     known_items: Vec<LR1ParserItem>,
 ) -> Vec<LR1ParserItem> {
     let mut known_follow = HashMap::<String, HashSet<String>>::new();
@@ -408,7 +408,7 @@ fn build_state_for_items(
 
 fn construct_lr0_state(
     token_alphabet: &HashSet<String>,
-    grammar: &ParserRawGrammar,
+    grammar: &ParserGrammar,
     known_items: Vec<LR0ParserItem>,
 ) -> Vec<LR0ParserItem> {
     let mut state = known_items;
