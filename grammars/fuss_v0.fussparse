@@ -2,6 +2,8 @@ code = stmt_list EOF
 stmt_list = stmt
 stmt_list = stmt_list stmt
 
+stmt = import_stmt SEMICOLON
+stmt = class_def
 stmt = let_def SEMICOLON
 stmt = func_def
 stmt = if_def
@@ -11,6 +13,20 @@ stmt = scope_def
 stmt = return_stmt SEMICOLON
 stmt = postfix_expr SEMICOLON
 stmt = assign_stmt SEMICOLON
+
+import_stmt = IMPORT STRING
+
+class_def = access_modifier? STATIC? CLASS IDENTIFIER class_scope
+
+access_modifier = PUBLIC
+access_modifier = PROTECTED
+access_modifier = PRIVATE
+
+class_scope = OPEN_BRACE class_members_list CLOSED_BRACE
+class_members_list = class_members_list class_member
+class_member = access_modifier? STATIC? IDENTIFIER SET expr SEMICOLON
+class_member = access_modifier? STATIC? IDENTIFIER SEMICOLON
+class_member = access_modifier? STATIC? IDENTIFIER OPEN_PAREN args_list? CLOSED_PAREN SEMICOLON
 
 let_def = LET IDENTIFIER SET expr
 func_def = FUNC IDENTIFIER OPEN_PAREN args_list? CLOSED_PAREN scope_def
@@ -40,6 +56,11 @@ literal_ = FLOAT_NUMBER
 literal = BOOLEAN
 literal = STRING
 literal = UNTERMINATED_STRING
+literal = object_literal
+
+object_literal = OPEN_BRACE object_field_list? CLOSED_BRACE
+object_field_list = object_field_list COMMA object_field
+object_field = IDENTIFIER COLON expr
 
 and_expr = and_expr WIDE_AND or_expr
 and_expr = and_expr AND or_expr
