@@ -1,8 +1,7 @@
 use crate::ast_builder::nodes::{CodeNode, ExpressionNode, StatementNode};
-use crate::lexer::common::lexer::{Position, Token};
+use crate::lexer::common::lexer::Token;
 use crate::parser::common::parser::{ParserNode, Span};
-use std::assert_matches;
-use std::fmt::{Debug, Formatter, write};
+use std::fmt::{Debug, Formatter};
 
 pub enum AstBuilderError {
     TerminalExpected {
@@ -164,15 +163,14 @@ impl AstBuilder {
     fn visit_stmt(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
         assert_eq!(node.get_node_kind(), "stmt");
         match node {
-            ParserNode::NonTerminal {
-                kind, mut children, ..
-            } => {
+            ParserNode::NonTerminal { mut children, .. } => {
                 let inner_statement_node = children.remove(0);
                 match inner_statement_node.get_node_kind().as_str() {
                     "let_def" => self.visit_let_def(inner_statement_node),
                     "func_def" => self.visit_func_def(inner_statement_node),
                     "if_def" => self.visit_if_def(inner_statement_node),
                     "while_stmt" => self.visit_while_stmt(inner_statement_node),
+                    "for_stmt" => self.visit_for_stmt(inner_statement_node),
                     "scope_def" => self.visit_scope_def(inner_statement_node),
                     "return_stmt" => self.visit_return_stmt(inner_statement_node),
                     "postfix_expr" => self.visit_postfix_stmt_expr(inner_statement_node),
@@ -317,6 +315,71 @@ impl AstBuilder {
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("while_stmt", token),
         }
     }
+    fn visit_for_stmt(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "for_stmt");
+        match node {
+            ParserNode::NonTerminal {
+                mut children, span, ..
+            } => {
+                //FOR OPEN_PAREN let_def SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
+                if children[2].get_node_kind() == "SEMICOLON" {
+                    let semicolon_span = children[2].get_node_span();
+                    children.insert(
+                        2,
+                        ParserNode::NonTerminal {
+                            kind: "empty_expr".to_string(),
+                            children: Vec::new(),
+                            span: (semicolon_span.0.clone(), semicolon_span.0.clone()),
+                        },
+                    );
+                }
+                if children[4].get_node_kind() == "SEMICOLON" {
+                    let semicolon_span = children[4].get_node_span();
+                    children.insert(
+                        2,
+                        ParserNode::NonTerminal {
+                            kind: "empty_expr".to_string(),
+                            children: Vec::new(),
+                            span: (semicolon_span.0.clone(), semicolon_span.0.clone()),
+                        },
+                    );
+                }
+                if children[6].get_node_kind() == "CLOSED_PAREN" {
+                    let semicolon_span = children[6].get_node_span();
+                    children.insert(
+                        2,
+                        ParserNode::NonTerminal {
+                            kind: "empty_expr".to_string(),
+                            children: Vec::new(),
+                            span: (semicolon_span.0.clone(), semicolon_span.0.clone()),
+                        },
+                    );
+                }
+
+                let let_def_node = children.remove(2);
+                //FOR OPEN_PAREN SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
+                let condition_expr_node = children.remove(3);
+                //FOR OPEN_PAREN SEMICOLON SEMICOLON expr CLOSED_PAREN scope_def
+                let update_expr_node = children.remove(4);
+                //FOR OPEN_PAREN SEMICOLON SEMICOLON CLOSED_PAREN scope_def
+                let scope_def = children.remove(5);
+
+                let indexer_def = Box::from(self.visit_let_def(let_def_node)?);
+                let condition = self.visit_expr(condition_expr_node)?;
+                let update_expr = self.visit_expr(update_expr_node)?;
+                let body = self.handle_scope_node(scope_def)?;
+
+                Ok(StatementNode::ForStatement {
+                    indexer_def,
+                    condition,
+                    update_expr,
+                    body,
+                    span,
+                })
+            }
+            ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("while_stmt", token),
+        }
+    }
     fn visit_scope_def(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
         assert_eq!(node.get_node_kind(), "scope_def");
         match node {
@@ -362,10 +425,29 @@ impl AstBuilder {
             } => {
                 match children.len() {
                     1 => ErrorBuilder::unknown_rule_for(
-                        "postfix_expr",
+                        "postfix_expr stmt",
                         1,
                         children[0].get_node_span(),
                     ),
+                    2 => {
+                        let expr = children.remove(0);
+                        let operation = children.remove(0);
+                        match operation.get_node_kind().as_str() {
+                            "INCREMENT" => Ok(StatementNode::IncrementStatement {
+                                source: self.visit_postfix_expr(expr)?,
+                                span,
+                            }),
+                            "DECREMENT" => Ok(StatementNode::DecrementStatement {
+                                source: self.visit_postfix_expr(expr)?,
+                                span,
+                            }),
+                            node_kind => ErrorBuilder::unexpected_token_kind(
+                                "INCREMENT or DECREMENT",
+                                node_kind,
+                                children[1].get_node_span(),
+                            ),
+                        }
+                    }
                     3 => {
                         let expr_kind = children[1].get_node_kind();
                         if expr_kind == "DOT" {
@@ -790,6 +872,7 @@ impl AstBuilder {
                 let arg = self.visit_unary_expr(children.remove(1))?;
                 // NOT
                 // MINUS
+                // INVERSE
                 if children[0].get_node_kind() == "NOT" {
                     return Ok(ExpressionNode::NotExpression {
                         source: Box::from(arg),
@@ -798,6 +881,12 @@ impl AstBuilder {
                 }
                 if children[0].get_node_kind() == "MINUS" {
                     return Ok(ExpressionNode::NegateExpression {
+                        source: Box::from(arg),
+                        span,
+                    });
+                }
+                if children[0].get_node_kind() == "INVERSE" {
+                    return Ok(ExpressionNode::InverseExpression {
                         source: Box::from(arg),
                         span,
                     });
@@ -819,6 +908,25 @@ impl AstBuilder {
             } => {
                 match children.len() {
                     1 => self.visit_primary_expr(children.remove(0)),
+                    2 => {
+                        let expr = children.remove(0);
+                        let operation = children.remove(0);
+                        match operation.get_node_kind().as_str() {
+                            "INCREMENT" => Ok(ExpressionNode::IncrementExpression {
+                                source: Box::from(self.visit_postfix_expr(expr)?),
+                                span,
+                            }),
+                            "DECREMENT" => Ok(ExpressionNode::DecrementExpression {
+                                source: Box::from(self.visit_postfix_expr(expr)?),
+                                span,
+                            }),
+                            node_kind => ErrorBuilder::unexpected_token_kind(
+                                "INCREMENT or DECREMENT",
+                                node_kind,
+                                children[1].get_node_span(),
+                            ),
+                        }
+                    }
                     3 => {
                         if children[1].get_node_kind() == "DOT" {
                             //postfix_expr DOT IDENTIFIER
@@ -889,7 +997,7 @@ impl AstBuilder {
             ParserNode::NonTerminal {
                 mut children, span, ..
             } => {
-                if (children.len() == 1) {
+                if children.len() == 1 {
                     let item = children.remove(0);
                     return match item.get_node_kind().as_str() {
                         "literal" => self.visit_literal(item),

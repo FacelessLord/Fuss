@@ -4,13 +4,13 @@ func main() {
     let b = 1;
     let x = [1];
 
-     while(true) {
+    for(let i = 0; i < 100; i++) {
         log(a);
         x.push(a);
         let c = a+b;
         let d = b;
         a = d;
         b = c;
-     }
-     x[0] = 1;
+    }
+    x[0] = 1;
 }

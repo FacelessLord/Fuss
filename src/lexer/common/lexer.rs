@@ -1,5 +1,5 @@
 use crate::char_len;
-use std::fmt::{Display, Formatter, Pointer};
+use std::fmt::{Display, Formatter};
 
 pub struct Position {
     pub filename: String,

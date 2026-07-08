@@ -1,7 +1,6 @@
 use crate::lexer::common::lexer::{Position, Token};
-use crate::parser::common::parser::{ParserNode, join_node_spans};
-use crate::parser::lr1_automata_builder::{LR1Automata, LR1ParserAction, LR1ParserItem};
-use crate::parser::parser_raw_grammar::ParserRawGrammarRule;
+use crate::parser::common::parser::{join_node_spans, ParserNode};
+use crate::parser::lr1_automata_builder::{LR1Automata, LR1ParserAction};
 use std::collections::{HashSet, VecDeque};
 use std::fmt::Debug;
 
@@ -18,7 +17,7 @@ pub enum ParserError {
 impl ParserError {
     pub fn get_message(&self) -> String {
         match self {
-            &ParserError::UnexpectedToken(ref token, ref position, ref expected_tokens) => {
+            &ParserError::UnexpectedToken(ref token, ref position, ref _expected_tokens) => {
                 format!(
                     "{message} at {file}:{line}:{column}",
                     message = format!(

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut};
 
+#[derive(Clone)]
 pub struct StableOrderedSet<T>
 where
     T: Eq + Hash + Clone,
@@ -79,7 +80,7 @@ impl<T: Eq + Hash + Clone> StableOrderedSet<T> {
     pub fn union<'a>(&'a self, other: &'a StableOrderedSet<T>) -> StableOrderedSet<T> {
         let mut result = StableOrderedSet::new();
 
-        for item in self.clone() {
+        for item in self {
             result.insert(item);
         }
         for item in other.clone() {

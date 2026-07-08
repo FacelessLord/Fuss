@@ -22,7 +22,7 @@ fn main() {
     let mut parser = LR1Parser::new(automata);
 
     let filename = String::from("grammars/fibb.fuss");
-    let mut code_file = File::open(filename.clone());
+    let code_file = File::open(filename.clone());
     let mut code_text = String::new();
 
     code_file.expect("").read_to_string(&mut code_text).unwrap();

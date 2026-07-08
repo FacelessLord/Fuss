@@ -28,6 +28,13 @@ pub enum StatementNode {
         body: Vec<StatementNode>,
         span: (Position, Position),
     },
+    ForStatement {
+        indexer_def: Box<StatementNode>,
+        condition: ExpressionNode,
+        update_expr: ExpressionNode,
+        body: Vec<StatementNode>,
+        span: (Position, Position),
+    },
     ScopeStatement {
         body: Vec<StatementNode>,
         span: (Position, Position),
@@ -49,6 +56,14 @@ pub enum StatementNode {
     ArrayAccessStatement {
         source: ExpressionNode,
         index: Vec<ExpressionNode>,
+        span: (Position, Position),
+    },
+    IncrementStatement {
+        source: ExpressionNode,
+        span: (Position, Position),
+    },
+    DecrementStatement {
+        source: ExpressionNode,
         span: (Position, Position),
     },
     AssignmentStatement {
@@ -138,6 +153,10 @@ pub enum ExpressionNode {
         source: Box<ExpressionNode>,
         span: (Position, Position),
     },
+    InverseExpression {
+        source: Box<ExpressionNode>,
+        span: (Position, Position),
+    },
     NegateExpression {
         source: Box<ExpressionNode>,
         span: (Position, Position),
@@ -157,7 +176,15 @@ pub enum ExpressionNode {
         index: Vec<ExpressionNode>,
         span: (Position, Position),
     },
-    Variable{
+    IncrementExpression {
+        source: Box<ExpressionNode>,
+        span: (Position, Position),
+    },
+    DecrementExpression {
+        source: Box<ExpressionNode>,
+        span: (Position, Position),
+    },
+    Variable {
         name: String,
         span: (Position, Position),
     },

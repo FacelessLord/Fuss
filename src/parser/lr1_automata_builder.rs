@@ -1,6 +1,5 @@
 use crate::collections::stable_ordered_set::StableOrderedSet;
 use crate::parser::parser_raw_grammar::{read_raw_parser_grammar, ParserRawGrammar};
-use ordermap::set::MutableValues;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};

@@ -6,6 +6,7 @@ stmt = let_def SEMICOLON
 stmt = func_def
 stmt = if_def
 stmt = while_stmt
+stmt = for_stmt
 stmt = scope_def
 stmt = return_stmt SEMICOLON
 stmt = postfix_expr SEMICOLON
@@ -22,6 +23,15 @@ if_def = if_def_stanalone ELSE scope_def
 if_def_stanalone = IF OPEN_PAREN expr CLOSED_PAREN scope_def
 
 while_stmt = WHILE OPEN_PAREN expr CLOSED_PAREN scope_def
+
+for_stmt = FOR OPEN_PAREN let_def SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN let_def SEMICOLON expr SEMICOLON  CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN let_def SEMICOLON SEMICOLON expr CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN let_def SEMICOLON SEMICOLON CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN SEMICOLON expr SEMICOLON CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN SEMICOLON SEMICOLON expr CLOSED_PAREN scope_def
+for_stmt = FOR OPEN_PAREN SEMICOLON SEMICOLON CLOSED_PAREN scope_def
 
 scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
 
@@ -64,11 +74,14 @@ multiplication_expr = multiplication_expr SLASH unary_expr
 multiplication_expr = unary_expr
 
 unary_expr = NOT unary_expr
+unary_expr = INVERSE unary_expr
 unary_expr = MINUS unary_expr
 unary_expr = postfix_expr
 
 postfix_expr = primary_expr
 postfix_expr = postfix_expr DOT IDENTIFIER
+postfix_expr = postfix_expr INCREMENT
+postfix_expr = postfix_expr DECREMENT
 postfix_expr = postfix_expr OPEN_BRACKET expression_list CLOSED_BRACKET
 postfix_expr = postfix_expr OPEN_PAREN expression_list CLOSED_PAREN
 postfix_expr = postfix_expr OPEN_PAREN CLOSED_PAREN
@@ -80,3 +93,5 @@ primary_expr = array_def
 
 array_def = OPEN_BRACKET expression_list CLOSED_BRACKET
 array_def = OPEN_BRACKET CLOSED_BRACKET
+
+empty_expr = nan
