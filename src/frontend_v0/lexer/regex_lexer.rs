@@ -1,7 +1,7 @@
 use crate::char_len;
-use crate::lexer::common::lexer::{Lexer, LexerError, Position, Token, EOF};
-use crate::lexer::common::lexer_raw_grammar::read_raw_lexer_grammar;
-use crate::lexer::lexer_regex_grammar::{
+use crate::frontend_v0::lexer::common::lexer::{Lexer, LexerError, Position, Token, EOF};
+use crate::frontend_v0::lexer::common::lexer_raw_grammar::read_raw_lexer_grammar;
+use crate::frontend_v0::lexer::lexer_regex_grammar::{
     process_grammar, LexerRegexGrammar, LexerRegexGrammarRule,
 };
 use regex::Regex;

@@ -1,4 +1,4 @@
-use crate::lexer::common::lexer_raw_grammar::{LexerRawGrammar, LexerRawGrammarRule};
+use crate::frontend_v0::lexer::common::lexer_raw_grammar::{LexerRawGrammar, LexerRawGrammarRule};
 use regex::Regex;
 
 pub struct LexerRegexGrammar {

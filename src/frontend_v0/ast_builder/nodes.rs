@@ -1,11 +1,16 @@
-use crate::lexer::common::lexer::Position;
+use crate::frontend_v0::lexer::common::lexer::Position;
 
 pub struct CodeNode {
+    // pub imports_list: Vec<StatementNode>,
     pub statement_list: Vec<StatementNode>,
     pub span: (Position, Position),
 }
 
 pub enum StatementNode {
+    ImportStatement {
+        imported_file_name: String,
+        span: (Position, Position),
+    },
     LetStatement {
         var_name: String,
         value: ExpressionNode,

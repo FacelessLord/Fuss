@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Error, Read};
-use crate::lexer::common::lexer::EOF;
+use crate::frontend_v0::lexer::common::lexer::EOF;
 
 pub struct LexerRawGrammar {
     pub rules: Vec<LexerRawGrammarRule>,

@@ -1,6 +1,6 @@
-use crate::ast_builder::nodes::{CodeNode, ExpressionNode, StatementNode};
-use crate::lexer::common::lexer::Token;
-use crate::parser::common::parser::{ParserNode, Span};
+use crate::frontend_v0::ast_builder::nodes::{CodeNode, ExpressionNode, StatementNode};
+use crate::frontend_v0::lexer::common::lexer::Token;
+use crate::frontend_v0::parser::common::parser::{ParserNode, Span};
 use std::fmt::{Debug, Formatter};
 
 pub enum AstBuilderError {

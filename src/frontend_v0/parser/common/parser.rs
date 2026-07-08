@@ -1,4 +1,4 @@
-use crate::lexer::common::lexer::{Position, Token};
+use crate::frontend_v0::lexer::common::lexer::{Position, Token};
 use std::fmt::Debug;
 
 pub type Span = (Position, Position);

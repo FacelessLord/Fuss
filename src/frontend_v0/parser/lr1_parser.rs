@@ -1,6 +1,6 @@
-use crate::lexer::common::lexer::{Position, Token};
-use crate::parser::common::parser::{join_node_spans, ParserNode};
-use crate::parser::lr1_automata_builder::{LR1Automata, LR1ParserAction};
+use crate::frontend_v0::lexer::common::lexer::{Position, Token};
+use crate::frontend_v0::parser::common::parser::{join_node_spans, ParserNode};
+use crate::frontend_v0::parser::lr1_automata_builder::{LR1Automata, LR1ParserAction};
 use std::collections::{HashSet, VecDeque};
 use std::fmt::Debug;
 
@@ -51,6 +51,11 @@ impl LR1Parser {
             state: 0,
             stack: vec![],
         }
+    }
+    
+    pub fn reset(&mut self) {
+        self.state = 0;
+        self.stack = vec![];
     }
 
     pub fn parse(&mut self, tokens: &Vec<Token>) -> (ParserNode, Vec<ParserError>) {

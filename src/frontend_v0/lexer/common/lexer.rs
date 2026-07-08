@@ -1,6 +1,7 @@
 use crate::char_len;
 use std::fmt::{Display, Formatter};
 
+#[derive(Debug)]
 pub struct Position {
     pub filename: String,
     pub line: usize,
@@ -57,6 +58,7 @@ impl Token {
     }
 }
 
+#[derive(Debug)]
 pub struct LexerError {
     position: Position,
     message: String,

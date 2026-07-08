@@ -1,5 +1,6 @@
 use crate::collections::stable_ordered_set::StableOrderedSet;
-use crate::parser::parser_raw_grammar::{read_raw_parser_grammar, ParserRawGrammar};
+use crate::frontend_v0::parser::lr1_parser::LR1Parser;
+use crate::frontend_v0::parser::parser_raw_grammar::{ParserRawGrammar, read_raw_parser_grammar};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
@@ -197,6 +198,13 @@ pub enum LR1ParserAction {
     Reduce(usize),
 }
 
+pub fn build_lr1_parser(
+    token_alphabet: &HashSet<String>,
+    parser_grammar_filename: String,
+) -> LR1Parser {
+    let automata = build_automata_from_grammar(token_alphabet, parser_grammar_filename).unwrap();
+    LR1Parser::new(automata)
+}
 pub fn build_automata_from_grammar(
     token_alphabet: &HashSet<String>,
     filename: String,
@@ -253,7 +261,11 @@ fn build_automata_states(
     token_alphabet: &HashSet<String>,
     grammar: &ParserRawGrammar,
     start_non_terminal: String,
-) -> (StableOrderedSet<Vec<usize>>, StableOrderedSet<LR1ParserItem>, LR0GotoTable) {
+) -> (
+    StableOrderedSet<Vec<usize>>,
+    StableOrderedSet<LR1ParserItem>,
+    LR0GotoTable,
+) {
     let starting_state = create_starting_state(token_alphabet, grammar, start_non_terminal);
     let mut all_items = StableOrderedSet::<LR1ParserItem>::new();
 
@@ -298,7 +310,10 @@ fn build_automata_states(
     (all_states, all_items, goto_table)
 }
 
-fn remap_state(state: Vec<LR1ParserItem>, all_items: &mut StableOrderedSet<LR1ParserItem>) -> Vec<usize> {
+fn remap_state(
+    state: Vec<LR1ParserItem>,
+    all_items: &mut StableOrderedSet<LR1ParserItem>,
+) -> Vec<usize> {
     let mut remapped_state = Vec::new();
 
     for item in state {

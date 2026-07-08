@@ -1,2 +1,2 @@
-mod nodes;
+pub mod nodes;
 pub mod visitors;
