@@ -1,6 +1,5 @@
-use crate::lexer::common::lexer::EOF;
-use crate::parser::parser_raw_grammar::{ParserRawGrammar, read_raw_parser_grammar};
-use ordermap::OrderSet;
+use crate::collections::stable_ordered_set::StableOrderedSet;
+use crate::parser::parser_raw_grammar::{read_raw_parser_grammar, ParserRawGrammar};
 use ordermap::set::MutableValues;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Debug, Formatter};
@@ -59,6 +58,7 @@ impl Hash for LR0ParserItem {
     }
 }
 
+#[derive(Clone)]
 pub struct LR1ParserItem {
     source: String,
     marker_pos: usize,
@@ -254,11 +254,11 @@ fn build_automata_states(
     token_alphabet: &HashSet<String>,
     grammar: &ParserRawGrammar,
     start_non_terminal: String,
-) -> (OrderSet<Vec<usize>>, OrderSet<LR1ParserItem>, LR0GotoTable) {
+) -> (StableOrderedSet<Vec<usize>>, StableOrderedSet<LR1ParserItem>, LR0GotoTable) {
     let starting_state = create_starting_state(token_alphabet, grammar, start_non_terminal);
-    let mut all_items = OrderSet::<LR1ParserItem>::new();
+    let mut all_items = StableOrderedSet::<LR1ParserItem>::new();
 
-    let mut all_states = OrderSet::<Vec<usize>>::new(); //Vec::new();
+    let mut all_states = StableOrderedSet::<Vec<usize>>::new(); //Vec::new();
     let remapped_state = remap_state(starting_state, &mut all_items);
     all_states.insert(remapped_state);
 
@@ -299,7 +299,7 @@ fn build_automata_states(
     (all_states, all_items, goto_table)
 }
 
-fn remap_state(state: Vec<LR1ParserItem>, all_items: &mut OrderSet<LR1ParserItem>) -> Vec<usize> {
+fn remap_state(state: Vec<LR1ParserItem>, all_items: &mut StableOrderedSet<LR1ParserItem>) -> Vec<usize> {
     let mut remapped_state = Vec::new();
 
     for item in state {
@@ -309,7 +309,7 @@ fn remap_state(state: Vec<LR1ParserItem>, all_items: &mut OrderSet<LR1ParserItem
         } else {
             let item_index = all_items.get_index_of(&item).unwrap();
             all_items
-                .get_index_mut2(item_index)
+                .get_index_mut(item_index)
                 .unwrap()
                 .lookahead
                 .extend(item.lookahead.iter().cloned());
@@ -346,8 +346,8 @@ fn create_starting_state(
 
 fn get_consumable_tokens(
     state: &Vec<usize>,
-    all_items: &OrderSet<LR1ParserItem>,
-) -> HashSet<String> {
+    all_items: &StableOrderedSet<LR1ParserItem>,
+) -> StableOrderedSet<String> {
     state
         .iter()
         .filter_map(|item| {
@@ -355,7 +355,7 @@ fn get_consumable_tokens(
                 .get_index(item.clone())
                 .and_then(|x| x.get_next_token())
         })
-        .collect::<HashSet<String>>()
+        .collect::<StableOrderedSet<String>>()
 }
 
 fn build_state_for_items(
