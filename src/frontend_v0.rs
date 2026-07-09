@@ -61,6 +61,10 @@ impl FileAnalyzer {
         if errors.len() > 0 {
             return Err(FileAnalyzerError::LexerErrors(errors));
         }
+        let tokens = tokens
+            .into_iter()
+            .filter(|x| x.kind != "COMMENT")
+            .collect::<Vec<_>>();
 
         let (parse_tree, errors) = self.parser.parse(&tokens);
         self.parser.reset();
