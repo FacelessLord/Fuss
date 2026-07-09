@@ -1,8 +1,8 @@
 use crate::collections::stable_ordered_set::StableOrderedSet;
 use crate::frontend_v0::parser::lr1_parser::LR1Parser;
-use crate::frontend_v0::parser::parser_grammar::{read_parser_grammar, ParserGrammar};
+use crate::frontend_v0::parser::parser_grammar::{ParserGrammar, read_parser_grammar};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::io::Error;
 
@@ -123,9 +123,32 @@ impl Debug for LR1ParserItem {
         production.insert(self.marker_pos, MARKER_CHARACTER.to_string());
         write!(
             f,
-            "{0} -> {1}, {}",
+            "{0} -> {1}, {2}",
             self.source,
-            production.join::<_>(&String::from(", "))
+            production.join::<_>(&String::from(", ")),
+            self.lookahead
+                .iter()
+                .map(|x| x.clone())
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    }
+}
+
+impl Display for LR1ParserItem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut production = self.production.clone();
+        production.insert(self.marker_pos, MARKER_CHARACTER.to_string());
+        write!(
+            f,
+            "{0} -> {1}, {2}",
+            self.source,
+            production.join::<_>(&String::from(" ")),
+            self.lookahead
+                .iter()
+                .map(|x| x.clone())
+                .collect::<Vec<_>>()
+                .join(",")
         )
     }
 }
@@ -142,7 +165,15 @@ impl LR0GotoTable {
             maps: HashMap::new(),
         }
     }
-    fn add_entry(&mut self, start: usize, token: String, target: usize) {
+    fn add_entry(
+        &mut self,
+        start: usize,
+        token: String,
+        target: usize,
+        grammar: &ParserGrammar,
+        all_states: &StableOrderedSet<Vec<usize>>,
+        all_items: &StableOrderedSet<LR1ParserItem>,
+    ) {
         if !self.maps.contains_key(&start) {
             self.maps.insert(start, HashMap::new());
         }
@@ -154,9 +185,39 @@ impl LR0GotoTable {
                 "Got some shift overriding in {0} -({1})> {2}",
                 start, token, target
             );
+            println!("Source state ({}):", start);
+            let hydrated_source_state =
+                Self::hydrate_state(start, all_states, all_items);
+            println!(
+                "{}",
+                hydrated_source_state
+                    .iter()
+                    .map(|x| format!("{}", x))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            );
+            println!("Target state ({}):", target);
+            let hydrated_target_state =
+                Self::hydrate_state(target, all_states, all_items);
+            println!(
+                "{}",
+                hydrated_target_state
+                    .iter()
+                    .map(|x| format!("{}", x))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            );
         }
     }
-    fn add_reduces(&mut self, start: usize, lookaheads: &HashSet<String>, rule: usize) {
+    fn add_reduces(
+        &mut self,
+        start: usize,
+        lookaheads: &HashSet<String>,
+        rule: usize,
+        grammar: &ParserGrammar,
+        all_states: &StableOrderedSet<Vec<usize>>,
+        all_items: &StableOrderedSet<LR1ParserItem>,
+    ) {
         if !self.maps.contains_key(&start) {
             self.maps.insert(start, HashMap::new());
         }
@@ -166,10 +227,33 @@ impl LR0GotoTable {
             if result.is_some() {
                 let some_result = result.unwrap();
                 match some_result {
-                    LR1ParserAction::Shift(_) => {
+                    LR1ParserAction::Shift(target_state) => {
                         println!(
                             "Got some shift->reduce overriding in {0} -({1})> {2}",
                             start, token, rule
+                        );
+
+                        println!("Source state ({}):", start);
+                        let hydrated_source_state =
+                            Self::hydrate_state(start, all_states, all_items);
+                        println!(
+                            "{}",
+                            hydrated_source_state
+                                .iter()
+                                .map(|x| format!("{}", x))
+                                .collect::<Vec<String>>()
+                                .join("\n")
+                        );
+                        println!("Primary target state ({}):", start);
+                        let hydrated_target_state =
+                            Self::hydrate_state(target_state, all_states, all_items);
+                        println!(
+                            "{}",
+                            hydrated_target_state
+                                .iter()
+                                .map(|x| format!("{}", x))
+                                .collect::<Vec<String>>()
+                                .join("\n")
                         );
                     }
                     LR1ParserAction::Reduce(rule_number) => {
@@ -178,11 +262,40 @@ impl LR0GotoTable {
                                 "Got some reduce({0})->reduce({1}) overriding in {2} -({3})> {4}",
                                 rule_number, rule, start, token, rule
                             );
+                            println!("Source state ({}):", start);
+                            let hydrated_source_state =
+                                Self::hydrate_state(start, all_states, all_items);
+                            println!(
+                                "{}",
+                                hydrated_source_state
+                                    .iter()
+                                    .map(|x| format!(" - {}", x))
+                                    .collect::<Vec<String>>()
+                                    .join("\n")
+                            );
+                            println!(
+                                "Primary reduction rule ({}): {}",
+                                rule_number, grammar.rules[rule_number]
+                            );
+                            println!("Final reduction rule ({}): {}", rule, grammar.rules[rule]);
+                            println!();
                         }
                     }
                 }
             }
         }
+    }
+
+    fn hydrate_state(
+        state_id: usize,
+        all_states: &StableOrderedSet<Vec<usize>>,
+        all_items: &StableOrderedSet<LR1ParserItem>,
+    ) -> Vec<LR1ParserItem> {
+        let state = all_states[state_id].clone();
+        state
+            .into_iter()
+            .map(|x| all_items[x].clone())
+            .collect::<Vec<_>>()
     }
 }
 
@@ -240,7 +353,14 @@ pub fn build_automata(
                 continue;
             }
             let rule = rule_option.unwrap();
-            goto_table.add_reduces(state_id, &rule.lookahead, rule.rule_id);
+            goto_table.add_reduces(
+                state_id,
+                &rule.lookahead,
+                rule.rule_id,
+                &grammar,
+                &all_states,
+                &all_items,
+            );
         }
     }
     let mut vector_goto_table = Vec::with_capacity(goto_table.maps.len());
@@ -298,7 +418,14 @@ fn build_automata_states(
                 .or(Some(all_states.len()))
                 .unwrap();
 
-            goto_table.add_entry(state_id, token.clone(), new_state_id);
+            goto_table.add_entry(
+                state_id,
+                token.clone(),
+                new_state_id,
+                &grammar,
+                &all_states,
+                &all_items,
+            );
 
             // If it is indeed a new state
             if new_state_id == all_states.len() {
