@@ -18,6 +18,7 @@ PROTECTED = protected
 PRIVATE = private
 CONSTRUCTOR = constructor
 NEW = new
+EXTERN = extern
 EXTENDS = extends
 
 OPEN_PAREN = \(

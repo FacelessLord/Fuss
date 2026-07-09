@@ -121,7 +121,7 @@ pub enum StatementNode {
         right_side: ExpressionNode,
         span: Span,
     },
-    PassStatement {
+    ExternStatement {
         span: Span,
     },
 }

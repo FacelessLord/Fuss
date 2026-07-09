@@ -13,6 +13,7 @@ stmt = scope_def
 stmt = return_stmt SEMICOLON
 stmt = postfix_expr SEMICOLON
 stmt = assign_stmt SEMICOLON
+stmt = EXTERN SEMICOLON
 
 import_stmt = IMPORT STRING
 

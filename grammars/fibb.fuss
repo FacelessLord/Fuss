@@ -7,23 +7,13 @@ public class ArrayList {
     public class InnerArrayList {
         public static constructor() {
 
-        }public class InnerArrayList {
-                 public static constructor() {
+        }
+    }
+}
 
-                 }
-             }public class InnerArrayList {
-                      public static constructor() {
-
-                      }
-                  }public class InnerArrayList {
-                           public static constructor() {
-
-                           }
-                       }public class InnerArrayList {
-                                public static constructor() {
-
-                                }
-                            }
+public class Std {
+    log(a) {
+        extern;
     }
 }
 

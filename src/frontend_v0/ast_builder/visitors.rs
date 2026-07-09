@@ -208,7 +208,7 @@ impl AstBuilder {
                     "return_stmt" => self.visit_return_stmt(inner_statement_node),
                     "postfix_expr" => self.visit_postfix_stmt_expr(inner_statement_node),
                     "assign_stmt" => self.visit_assign_stmt(inner_statement_node),
-                    "PASS" => self.visit_pass_stmt(inner_statement_node),
+                    "EXTERN" => self.visit_extern_stmt(inner_statement_node),
                     kind => ErrorBuilder::unexpected_token_kind(
                         "something_def or return_stmt or postfix_expr",
                         kind,
@@ -220,13 +220,13 @@ impl AstBuilder {
         }
     }
 
-    fn visit_pass_stmt(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
-        assert_eq!(node.get_node_kind(), "PASS");
+    fn visit_extern_stmt(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "EXTERN");
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
-                ErrorBuilder::terminal_expected("PASS", kind, span)
+                ErrorBuilder::terminal_expected("EXTERN", kind, span)
             }
-            ParserNode::Terminal(token) => Ok(StatementNode::PassStatement {
+            ParserNode::Terminal(token) => Ok(StatementNode::ExternStatement {
                 span: (token.position.clone(), token.get_end_position()),
             }),
         }
