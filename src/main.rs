@@ -2,7 +2,7 @@ pub mod collections;
 pub mod frontend_v0;
 pub mod macros;
 
-use crate::frontend_v0::FileAnalyzer;
+use crate::frontend_v0::file_analyzer::FileAnalyzer;
 
 fn main() {
     let filename = String::from("grammars/fibb.fuss");

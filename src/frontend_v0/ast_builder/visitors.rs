@@ -1,3 +1,4 @@
+use crate::frontend_v0::ast_builder::nodes::StatementNode::ImportStatement;
 use crate::frontend_v0::ast_builder::nodes::{
     AccessModifier, ClassMemberNode, CodeNode, ExpressionNode, StatementNode,
 };
@@ -172,9 +173,21 @@ impl AstBuilder {
                 }
                 let stmt_tree = children.remove(0);
                 let statement_list = self.visit_stmt_list(stmt_tree)?;
+                let mut code = Vec::new();
+                let mut imports = Vec::new();
+
+                for stmt in statement_list {
+                    match stmt {
+                        import_stmt @ StatementNode::ImportStatement { .. } => {
+                            imports.push(import_stmt);
+                        }
+                        other_stmt => code.push(other_stmt),
+                    }
+                }
 
                 Ok(CodeNode {
-                    statement_list,
+                    imports_list: imports,
+                    statement_list: code,
                     span,
                 })
             }
@@ -198,6 +211,7 @@ impl AstBuilder {
             ParserNode::NonTerminal { mut children, .. } => {
                 let inner_statement_node = children.remove(0);
                 match inner_statement_node.get_node_kind().as_str() {
+                    "import_stmt" => self.visit_import_stmt(inner_statement_node),
                     "class_def" => self.visit_class_def(inner_statement_node),
                     "let_def" => self.visit_let_def(inner_statement_node),
                     "func_def" => self.visit_func_def(inner_statement_node),
@@ -229,6 +243,25 @@ impl AstBuilder {
             ParserNode::Terminal(token) => Ok(StatementNode::ExternStatement {
                 span: (token.position.clone(), token.get_end_position()),
             }),
+        }
+    }
+
+    fn visit_import_stmt(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "import_stmt");
+        match node {
+            ParserNode::NonTerminal {
+                mut children, span, ..
+            } => {
+                //IMPORT STRING
+                let file_path = self.visit_string_literal(children.remove(1))?;
+                Ok(StatementNode::ImportStatement {
+                    imported_file_name: file_path,
+                    span,
+                })
+            }
+            ParserNode::Terminal(token) => {
+                ErrorBuilder::non_terminal_expected("import_stmt", token)
+            }
         }
     }
 
@@ -839,34 +872,59 @@ impl AstBuilder {
     fn visit_literal(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
         assert_eq!(node.get_node_kind(), "literal");
         match node {
-            ParserNode::NonTerminal { mut children, .. } => {
+            ParserNode::NonTerminal {
+                mut children, span, ..
+            } => {
                 let item = children.remove(0);
-                match item {
-                    ParserNode::NonTerminal { kind, span, .. } => {
-                        ErrorBuilder::terminal_expected("literal", kind, span)
-                    }
-                    ParserNode::Terminal(token) => match token.kind.as_str() {
-                        "NUMBER" => Ok(ExpressionNode::NumberLiteral {
-                            value: token.text.clone().parse::<i32>().unwrap(),
-                            span: (token.position.clone(), token.get_end_position()),
-                        }),
-                        "BOOLEAN" => Ok(ExpressionNode::BooleanLiteral {
-                            value: token.text.clone().parse::<bool>().unwrap(),
-                            span: (token.position.clone(), token.get_end_position()),
-                        }),
-                        "STRING" => Ok(ExpressionNode::StringLiteral {
-                            value: token.text.clone(),
-                            span: (token.position.clone(), token.get_end_position()),
-                        }),
-                        default => ErrorBuilder::unexpected_token_kind(
-                            "NUMBER or BOOLEAN or STRING",
-                            default,
-                            (token.position.clone(), token.get_end_position()),
-                        ),
-                    },
+                match item.get_node_kind().as_str() {
+                    "NUMBER" => self.visit_number_literal(item),
+                    "BOOLEAN" => self.visit_boolean_literal(item),
+                    "STRING" => self.visit_string_literal(item),
+                    default => ErrorBuilder::unexpected_token_kind(
+                        "NUMBER or BOOLEAN or STRING",
+                        default,
+                        span,
+                    ),
                 }
             }
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("literal", token),
+        }
+    }
+
+    fn visit_string_literal(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "STRING");
+        match node {
+            ParserNode::NonTerminal { kind, span, .. } => {
+                ErrorBuilder::terminal_expected("STRING", kind, span)
+            }
+            ParserNode::Terminal(token) => Ok(ExpressionNode::StringLiteral {
+                value: token.text.clone(),
+                span: (token.position.clone(), token.get_end_position()),
+            }),
+        }
+    }
+    fn visit_boolean_literal(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "BOOLEAN");
+        match node {
+            ParserNode::NonTerminal { kind, span, .. } => {
+                ErrorBuilder::terminal_expected("BOOLEAN", kind, span)
+            }
+            ParserNode::Terminal(token) => Ok(ExpressionNode::BooleanLiteral {
+                value: token.text.clone().parse::<bool>().unwrap(),
+                span: (token.position.clone(), token.get_end_position()),
+            }),
+        }
+    }
+    fn visit_number_literal(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "NUMBER");
+        match node {
+            ParserNode::NonTerminal { kind, span, .. } => {
+                ErrorBuilder::terminal_expected("NUMBER", kind, span)
+            }
+            ParserNode::Terminal(token) => Ok(ExpressionNode::NumberLiteral {
+                value: token.text.clone().parse::<i32>().unwrap(),
+                span: (token.position.clone(), token.get_end_position()),
+            }),
         }
     }
 

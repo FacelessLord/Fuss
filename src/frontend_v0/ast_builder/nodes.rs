@@ -1,7 +1,7 @@
 use crate::frontend_v0::parser::common::parser::Span;
 
 pub struct CodeNode {
-    // pub imports_list: Vec<StatementNode>,
+    pub imports_list: Vec<StatementNode>,
     pub statement_list: Vec<StatementNode>,
     pub span: Span,
 }
@@ -46,7 +46,7 @@ pub enum ClassMemberNode {
 
 pub enum StatementNode {
     ImportStatement {
-        imported_file_name: String,
+        imported_file_name: ExpressionNode,
         span: Span,
     },
     LetStatement {

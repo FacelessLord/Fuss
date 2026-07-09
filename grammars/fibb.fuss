@@ -1,21 +1,4 @@
-public class ArrayList {
-    public push(value) {}
-    public static constructor() {
-
-    }
-
-    public class InnerArrayList {
-        public static constructor() {
-
-        }
-    }
-}
-
-public class Std {
-    log(a) {
-        extern;
-    }
-}
+import "./math.fuss";
 
 func main(par1, par2, par3) {
     let a = 1;
