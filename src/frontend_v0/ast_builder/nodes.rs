@@ -34,9 +34,9 @@ pub enum StatementNode {
         span: (Position, Position),
     },
     ForStatement {
-        indexer_def: Box<StatementNode>,
-        condition: ExpressionNode,
-        update_expr: ExpressionNode,
+        indexer_def: Option<Box<StatementNode>>,
+        condition: Option<Box<ExpressionNode>>,
+        update_expr: Option<Box<ExpressionNode>>,
         body: Vec<StatementNode>,
         span: (Position, Position),
     },

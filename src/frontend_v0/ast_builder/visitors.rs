@@ -1,6 +1,7 @@
 use crate::frontend_v0::ast_builder::nodes::{CodeNode, ExpressionNode, StatementNode};
 use crate::frontend_v0::lexer::common::lexer::Token;
 use crate::frontend_v0::parser::common::parser::{ParserNode, Span};
+use std::cmp::min;
 use std::fmt::{Debug, Formatter};
 
 pub enum AstBuilderError {
@@ -128,6 +129,8 @@ impl ErrorBuilder {
 pub struct AstBuilder {}
 
 impl AstBuilder {
+    const EMPTY_EXPR_KIND: &str = "empty_expr";
+
     pub fn visit_code(&self, node: ParserNode) -> Result<CodeNode, AstBuilderError> {
         match node {
             ParserNode::NonTerminal {
@@ -321,40 +324,9 @@ impl AstBuilder {
             ParserNode::NonTerminal {
                 mut children, span, ..
             } => {
-                //FOR OPEN_PAREN let_def SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
-                if children[2].get_node_kind() == "SEMICOLON" {
-                    let semicolon_span = children[2].get_node_span();
-                    children.insert(
-                        2,
-                        ParserNode::NonTerminal {
-                            kind: "empty_expr".to_string(),
-                            children: Vec::new(),
-                            span: (semicolon_span.0.clone(), semicolon_span.0.clone()),
-                        },
-                    );
-                }
-                if children[4].get_node_kind() == "SEMICOLON" {
-                    let semicolon_span = children[4].get_node_span();
-                    children.insert(
-                        2,
-                        ParserNode::NonTerminal {
-                            kind: "empty_expr".to_string(),
-                            children: Vec::new(),
-                            span: (semicolon_span.0.clone(), semicolon_span.0.clone()),
-                        },
-                    );
-                }
-                if children[6].get_node_kind() == "CLOSED_PAREN" {
-                    let semicolon_span = children[6].get_node_span();
-                    children.insert(
-                        2,
-                        ParserNode::NonTerminal {
-                            kind: "empty_expr".to_string(),
-                            children: Vec::new(),
-                            span: (semicolon_span.0.clone(), semicolon_span.0.clone()),
-                        },
-                    );
-                }
+                self.handle_optional_node(&mut children, 2, "let_def".to_string());
+                self.handle_optional_node(&mut children, 4, "expr".to_string());
+                self.handle_optional_node(&mut children, 6, "expr".to_string());
 
                 let let_def_node = children.remove(2);
                 //FOR OPEN_PAREN SEMICOLON expr SEMICOLON expr CLOSED_PAREN scope_def
@@ -364,9 +336,22 @@ impl AstBuilder {
                 //FOR OPEN_PAREN SEMICOLON SEMICOLON CLOSED_PAREN scope_def
                 let scope_def = children.remove(5);
 
-                let indexer_def = Box::from(self.visit_let_def(let_def_node)?);
-                let condition = self.visit_expr(condition_expr_node)?;
-                let update_expr = self.visit_expr(update_expr_node)?;
+                let indexer_def = self
+                    .visit_empty_expr_or(let_def_node, |ast_builder, x| {
+                        ast_builder.visit_let_def(x)
+                    })?
+                    .map(|x| Box::from(x));
+
+                let condition = self
+                    .visit_empty_expr_or(condition_expr_node, |ast_builder, x| {
+                        ast_builder.visit_expr(x)
+                    })?
+                    .map(|x| Box::from(x));
+                let update_expr = self
+                    .visit_empty_expr_or(update_expr_node, |ast_builder, x| {
+                        ast_builder.visit_expr(x)
+                    })?
+                    .map(|x| Box::from(x));
                 let body = self.handle_scope_node(scope_def)?;
 
                 Ok(StatementNode::ForStatement {
@@ -1082,6 +1067,55 @@ impl AstBuilder {
             StatementNode::ScopeStatement { body, .. } => Ok(body),
             _ => ErrorBuilder::unexpected_token_kind("scope_def", node_kind.as_str(), node_span),
         }
+    }
+    fn handle_optional_node(
+        &self,
+        parent_node_children: &mut Vec<ParserNode>,
+        mut child_index: usize,
+        expected_node_kind: String,
+    ) {
+        if child_index >= parent_node_children.len()
+            || parent_node_children[child_index].get_node_kind() != expected_node_kind
+        {
+            child_index = min(child_index, parent_node_children.len() - 1);
+            let unexpected_node_span = parent_node_children[child_index].get_node_span();
+            parent_node_children.insert(
+                child_index,
+                ParserNode::NonTerminal {
+                    kind: Self::EMPTY_EXPR_KIND.to_string(),
+                    children: Vec::new(),
+                    span: (
+                        unexpected_node_span.0.clone(),
+                        unexpected_node_span.0.clone(),
+                    ),
+                },
+            );
+        }
+    }
+
+    fn handle_empty_expr(&self, node: ParserNode) -> Result<Option<ParserNode>, AstBuilderError> {
+        if node.get_node_kind() == Self::EMPTY_EXPR_KIND {
+            return Ok(None);
+        }
+        Ok(Some(node))
+    }
+
+    fn visit_empty_expr_or<T>(
+        &self,
+        node: ParserNode,
+        or_fn: fn(&Self, ParserNode) -> Result<T, AstBuilderError>,
+    ) -> Result<Option<T>, AstBuilderError> {
+        let def_result = self.handle_empty_expr(node)?.map(|x| or_fn(self, x));
+        reorder_option_and_result(def_result)
+    }
+}
+
+fn reorder_option_and_result<T>(
+    opt: Option<Result<T, AstBuilderError>>,
+) -> Result<Option<T>, AstBuilderError> {
+    match opt {
+        Some(indexer_def) => Ok(Some(indexer_def?)),
+        None => Ok(None),
     }
 }
 
