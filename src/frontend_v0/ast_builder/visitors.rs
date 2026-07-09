@@ -1505,7 +1505,7 @@ fn reorder_option_and_result<T>(
     }
 }
 
-fn first_err<T>(mut list: Vec<Result<T, AstBuilderError>>) -> Result<Vec<T>, AstBuilderError> {
+pub fn first_err<T>(mut list: Vec<Result<T, AstBuilderError>>) -> Result<Vec<T>, AstBuilderError> {
     let err_pos = list.iter().position(|x| x.is_err());
     if err_pos.is_some() {
         let error = list.remove(err_pos.unwrap());

@@ -6,12 +6,14 @@ pub struct CodeNode {
     pub span: Span,
 }
 
+#[derive(Clone)]
 pub enum AccessModifier {
     Public,
     Protected,
     Private,
 }
 
+#[derive(Clone)]
 pub enum ClassMemberNode {
     Field {
         access_modifier: AccessModifier,
@@ -41,9 +43,10 @@ pub enum ClassMemberNode {
         name: String,
         body: Vec<ClassMemberNode>,
         span: Span,
-    }
+    },
 }
 
+#[derive(Clone)]
 pub enum StatementNode {
     ImportStatement {
         imported_file_name: ExpressionNode,
@@ -126,6 +129,7 @@ pub enum StatementNode {
     },
 }
 
+#[derive(Clone)]
 pub enum ExpressionNode {
     AndExpression {
         left: Box<ExpressionNode>,
@@ -263,6 +267,50 @@ pub enum ExpressionNode {
         elements: Vec<ExpressionNode>,
         span: Span,
     },
+}
+
+impl StatementNode {
+    pub fn span(&self) -> Span {
+        match self {
+            StatementNode::ImportStatement { span, .. } => span.clone(),
+            StatementNode::LetStatement { span, .. } => span.clone(),
+            StatementNode::FunctionDefStatement { span, .. } => span.clone(),
+            StatementNode::ClassDefStatement { span, .. } => span.clone(),
+            StatementNode::IfStatement { span, .. } => span.clone(),
+            StatementNode::WhileStatement { span, .. } => span.clone(),
+            StatementNode::ForStatement { span, .. } => span.clone(),
+            StatementNode::ScopeStatement { span, .. } => span.clone(),
+            StatementNode::ReturnStatement { span, .. } => span.clone(),
+            StatementNode::FunctionCallStatement { span, .. } => span.clone(),
+            StatementNode::SymbolAccessStatement { span, .. } => span.clone(),
+            StatementNode::ArrayAccessStatement { span, .. } => span.clone(),
+            StatementNode::IncrementStatement { span, .. } => span.clone(),
+            StatementNode::DecrementStatement { span, .. } => span.clone(),
+            StatementNode::AssignmentStatement { span, .. } => span.clone(),
+            StatementNode::ExternStatement { span, .. } => span.clone(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            StatementNode::ImportStatement { .. } => "ImportStatement",
+            StatementNode::LetStatement { .. } => "LetStatement",
+            StatementNode::FunctionDefStatement { .. } => "FunctionDefStatement",
+            StatementNode::ClassDefStatement { .. } => "ClassDefStatement",
+            StatementNode::IfStatement { .. } => "IfStatement",
+            StatementNode::WhileStatement { .. } => "WhileStatement",
+            StatementNode::ForStatement { .. } => "ForStatement",
+            StatementNode::ScopeStatement { .. } => "ScopeStatement",
+            StatementNode::ReturnStatement { .. } => "ReturnStatement",
+            StatementNode::FunctionCallStatement { .. } => "FunctionCallStatement",
+            StatementNode::SymbolAccessStatement { .. } => "SymbolAccessStatement",
+            StatementNode::ArrayAccessStatement { .. } => "ArrayAccessStatement",
+            StatementNode::IncrementStatement { .. } => "IncrementStatement",
+            StatementNode::DecrementStatement { .. } => "DecrementStatement",
+            StatementNode::AssignmentStatement { .. } => "AssignmentStatement",
+            StatementNode::ExternStatement { .. } => "ExternStatement",
+        }
+    }
 }
 
 impl ExpressionNode {
