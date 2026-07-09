@@ -26,6 +26,7 @@ class_scope = OPEN_BRACE class_members_list? CLOSED_BRACE
 class_members_list = class_member
 class_members_list = class_members_list class_member
 class_member = access_modifier? STATIC? IDENTIFIER SET expr SEMICOLON
+class_member = access_modifier? STATIC? CLASS IDENTIFIER class_scope
 class_member = access_modifier? STATIC? IDENTIFIER SEMICOLON
 class_member = access_modifier? STATIC? CONSTRUCTOR OPEN_PAREN args_list? CLOSED_PAREN scope_def
 class_member = access_modifier? STATIC? IDENTIFIER OPEN_PAREN args_list? CLOSED_PAREN scope_def

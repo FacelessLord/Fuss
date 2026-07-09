@@ -396,6 +396,43 @@ impl AstBuilder {
                         ast_builder.visit_static_modifier(x)
                     })?
                     .unwrap_or(false);
+
+                if identifier_node.get_node_kind() == "CLASS" {
+                    // IDENTIFIER class_scope
+                    let identifier_node = children.remove(0);
+                    let name = self.visit_variable_name(identifier_node)?;
+                    let class_scope = self.visit_class_scope(children.remove(0))?;
+                    return Ok(ClassMemberNode::Class {
+                        access_modifier,
+                        is_static,
+                        name,
+                        body: class_scope,
+                        span,
+                    });
+                }
+                if identifier_node.get_node_kind() == "CONSTRUCTOR" {
+                    // OPEN_PAREN args_list? CLOSED_PAREN scope_def
+                    self.handle_optional_node(&mut children, 1, "args_list".to_string());
+
+                    // OPEN_PAREN args_list CLOSED_PAREN scope_def
+                    let arguments_node = children.remove(1);
+                    let arguments = self
+                        .visit_empty_expr_or(arguments_node, |ast_builder, x| {
+                            ast_builder.visit_args_list(x)
+                        })?
+                        .unwrap_or(Vec::new());
+
+                    // OPEN_PAREN CLOSED_PAREN scope_def
+                    let constructor_body = self.handle_scope_node(children.remove(2))?;
+                    return Ok(ClassMemberNode::Constructor {
+                        access_modifier,
+                        is_static,
+                        arguments,
+                        body: constructor_body,
+                        span,
+                    });
+                }
+
                 let name = self.visit_variable_name(identifier_node)?;
 
                 match children[0].get_node_kind().as_str() {
@@ -426,7 +463,11 @@ impl AstBuilder {
                         // OPEN_PAREN CLOSED_PAREN scope_def
                         let scope_node = children.remove(2);
 
-                        let arguments = self.visit_args_list(args_node)?;
+                        let arguments = self
+                            .visit_empty_expr_or(args_node, |ast_builder, x| {
+                                ast_builder.visit_args_list(x)
+                            })?
+                            .unwrap_or(Vec::new());
                         let body = self.handle_scope_node(scope_node)?;
 
                         Ok(ClassMemberNode::Method {

@@ -28,6 +28,20 @@ pub enum ClassMemberNode {
         body: Vec<StatementNode>,
         span: Span,
     },
+    Constructor {
+        access_modifier: AccessModifier,
+        is_static: bool,
+        arguments: Vec<String>,
+        body: Vec<StatementNode>,
+        span: Span,
+    },
+    Class {
+        access_modifier: AccessModifier,
+        is_static: bool,
+        name: String,
+        body: Vec<ClassMemberNode>,
+        span: Span,
+    }
 }
 
 pub enum StatementNode {

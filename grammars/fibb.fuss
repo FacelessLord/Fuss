@@ -1,5 +1,30 @@
 public class ArrayList {
     public push(value) {}
+    public static constructor() {
+
+    }
+
+    public class InnerArrayList {
+        public static constructor() {
+
+        }public class InnerArrayList {
+                 public static constructor() {
+
+                 }
+             }public class InnerArrayList {
+                      public static constructor() {
+
+                      }
+                  }public class InnerArrayList {
+                           public static constructor() {
+
+                           }
+                       }public class InnerArrayList {
+                                public static constructor() {
+
+                                }
+                            }
+    }
 }
 
 func main(par1, par2, par3) {
