@@ -1,6 +1,8 @@
-use crate::frontend_v0::ast_builder::nodes::{CodeNode, ExpressionNode, StatementNode};
-use crate::frontend_v0::lexer::common::lexer::Token;
-use crate::frontend_v0::parser::common::parser::{ParserNode, Span};
+use crate::frontend_v0::ast_builder::nodes::{
+    AccessModifier, ClassMemberNode, CodeNode, ExpressionNode, StatementNode,
+};
+use crate::frontend_v0::lexer::common::lexer::{Position, Token};
+use crate::frontend_v0::parser::common::parser::{ParserNode, Span, join_node_spans, join_spans};
 use std::cmp::min;
 use std::fmt::{Debug, Formatter};
 
@@ -22,6 +24,11 @@ pub enum AstBuilderError {
     UnexpectedTokenKind {
         expected_node: String,
         given_token_kind: String,
+        span: Span,
+    },
+    UnexpectedSyntaxNode {
+        expected_node: String,
+        given_node: String,
         span: Span,
     },
 }
@@ -74,6 +81,17 @@ impl Debug for AstBuilderError {
                     expected_node, given_token_kind, span.0
                 )
             }
+            AstBuilderError::UnexpectedSyntaxNode {
+                expected_node,
+                given_node,
+                span,
+            } => {
+                write!(
+                    f,
+                    "Expected {}, but got {} at {}",
+                    expected_node, given_node, span.0
+                )
+            }
         }
     }
 }
@@ -124,6 +142,17 @@ impl ErrorBuilder {
             span,
         })
     }
+    pub fn unexpected_syntax_node<T>(
+        expected_node: &str,
+        given_node: &str,
+        span: Span,
+    ) -> Result<T, AstBuilderError> {
+        Err(AstBuilderError::UnexpectedSyntaxNode {
+            expected_node: expected_node.to_string(),
+            given_node: given_node.to_string(),
+            span,
+        })
+    }
 }
 
 pub struct AstBuilder {}
@@ -169,6 +198,7 @@ impl AstBuilder {
             ParserNode::NonTerminal { mut children, .. } => {
                 let inner_statement_node = children.remove(0);
                 match inner_statement_node.get_node_kind().as_str() {
+                    "class_def" => self.visit_class_def(inner_statement_node),
                     "let_def" => self.visit_let_def(inner_statement_node),
                     "func_def" => self.visit_func_def(inner_statement_node),
                     "if_def" => self.visit_if_def(inner_statement_node),
@@ -178,6 +208,7 @@ impl AstBuilder {
                     "return_stmt" => self.visit_return_stmt(inner_statement_node),
                     "postfix_expr" => self.visit_postfix_stmt_expr(inner_statement_node),
                     "assign_stmt" => self.visit_assign_stmt(inner_statement_node),
+                    "PASS" => self.visit_pass_stmt(inner_statement_node),
                     kind => ErrorBuilder::unexpected_token_kind(
                         "something_def or return_stmt or postfix_expr",
                         kind,
@@ -188,6 +219,238 @@ impl AstBuilder {
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("stmt", token),
         }
     }
+
+    fn visit_pass_stmt(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "PASS");
+        match node {
+            ParserNode::NonTerminal { kind, span, .. } => {
+                ErrorBuilder::terminal_expected("PASS", kind, span)
+            }
+            ParserNode::Terminal(token) => Ok(StatementNode::PassStatement {
+                span: (token.position.clone(), token.get_end_position()),
+            }),
+        }
+    }
+
+    fn visit_class_def(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "class_def");
+        match node {
+            ParserNode::NonTerminal {
+                mut children, span, ..
+            } => {
+                self.handle_optional_node(&mut children, 0, "access_modifier".to_string());
+                self.handle_optional_node(&mut children, 1, "STATIC".to_string());
+
+                // access_modifier? STATIC? CLASS IDENTIFIER class_scope
+                let access_modifier_node = children.remove(0);
+                // STATIC? CLASS IDENTIFIER class_scope
+                let static_modifier_node = children.remove(0);
+                // CLASS IDENTIFIER class_scope
+                let identifier_node = children.remove(1);
+                // CLASS class_scope
+                let class_scope_node = children.remove(1);
+
+                let access_modifier = self
+                    .visit_empty_expr_or(access_modifier_node, |ast_builder, x| {
+                        ast_builder.visit_access_modifier(x)
+                    })?
+                    .unwrap_or(AccessModifier::Private);
+                let is_static = self
+                    .visit_empty_expr_or(static_modifier_node, |ast_builder, x| {
+                        ast_builder.visit_static_modifier(x)
+                    })?
+                    .unwrap_or(false);
+
+                let class_name = self.visit_variable_name(identifier_node)?;
+
+                let class_body = self.visit_class_scope(class_scope_node)?;
+
+                Ok(StatementNode::ClassDefStatement {
+                    class_name,
+                    access_modifier,
+                    is_static,
+                    body: class_body,
+                    span,
+                })
+            }
+            ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("class_def", token),
+        }
+    }
+
+    fn visit_access_modifier(&self, node: ParserNode) -> Result<AccessModifier, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "access_modifier");
+        match node {
+            ParserNode::NonTerminal {
+                mut children, span, ..
+            } => {
+                // PUBLIC
+                // PROTECTED
+                // PRIVATE
+                let modifier = children.remove(0);
+                match modifier {
+                    ParserNode::NonTerminal { kind, .. } => ErrorBuilder::terminal_expected(
+                        "PUBLIC or PROTECTED or PRIVATE",
+                        kind,
+                        span,
+                    ),
+                    ParserNode::Terminal(token) => match token.kind.as_str() {
+                        "PUBLIC" => Ok(AccessModifier::Public),
+                        "PROTECTED" => Ok(AccessModifier::Protected),
+                        "PRIVATE" => Ok(AccessModifier::Private),
+                        given_kind => ErrorBuilder::unexpected_token_kind(
+                            "PUBLIC or PROTECTED or PRIVATE",
+                            given_kind,
+                            span,
+                        ),
+                    },
+                }
+            }
+            ParserNode::Terminal(token) => {
+                ErrorBuilder::non_terminal_expected("access_modifier", token)
+            }
+        }
+    }
+    fn visit_static_modifier(&self, node: ParserNode) -> Result<bool, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "STATIC");
+        match node {
+            ParserNode::NonTerminal {
+                mut children,
+                span,
+                kind,
+                ..
+            } => ErrorBuilder::terminal_expected("STATIC", kind, span),
+            ParserNode::Terminal(token) => {
+                if token.kind.as_str() == "STATIC" {
+                    return Ok(true);
+                }
+
+                ErrorBuilder::unexpected_token_kind(
+                    "STATIC",
+                    token.kind.as_str(),
+                    (token.position.clone(), token.get_end_position()),
+                )
+            }
+        }
+    }
+
+    fn visit_class_scope(&self, node: ParserNode) -> Result<Vec<ClassMemberNode>, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "class_scope");
+        match node {
+            ParserNode::NonTerminal {
+                mut children, span, ..
+            } => {
+                // OPEN_BRACE class_members_list? CLOSED_BRACE
+                self.handle_optional_node(&mut children, 1, "class_members_list".to_string());
+                // OPEN_BRACE class_members_list CLOSED_BRACE
+                let class_member_list_node = children.remove(1);
+                Ok(self
+                    .visit_empty_expr_or(class_member_list_node, |ast_builder, x| {
+                        ast_builder.visit_class_members_list(x)
+                    })?
+                    .unwrap_or(Vec::new()))
+            }
+            ParserNode::Terminal(token) => {
+                ErrorBuilder::non_terminal_expected("class_scope", token)
+            }
+        }
+    }
+
+    fn visit_class_members_list(
+        &self,
+        node: ParserNode,
+    ) -> Result<Vec<ClassMemberNode>, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "class_members_list");
+        first_err(
+            self.unwrap_left_recursive_tree(node, "class_members_list".to_string())?
+                .into_iter()
+                .map(|x| self.visit_class_member(x))
+                .collect::<Vec<_>>(),
+        )
+    }
+    fn visit_class_member(&self, node: ParserNode) -> Result<ClassMemberNode, AstBuilderError> {
+        assert_eq!(node.get_node_kind(), "class_member");
+        match node {
+            ParserNode::NonTerminal {
+                mut children, span, ..
+            } => {
+                self.handle_optional_node(&mut children, 0, "access_modifier".to_string());
+                self.handle_optional_node(&mut children, 1, "STATIC".to_string());
+
+                //access_modifier? STATIC? IDENTIFIER ...
+                let access_modifier_node = children.remove(0);
+                //STATIC? IDENTIFIER ...
+                let static_modifier_node = children.remove(0);
+                //IDENTIFIER ...
+                let identifier_node = children.remove(0);
+                //SET expr SEMICOLON
+                //SEMICOLON
+                //OPEN_PAREN
+
+                let access_modifier = self
+                    .visit_empty_expr_or(access_modifier_node, |ast_builder, x| {
+                        ast_builder.visit_access_modifier(x)
+                    })?
+                    .unwrap_or(AccessModifier::Private);
+                let is_static = self
+                    .visit_empty_expr_or(static_modifier_node, |ast_builder, x| {
+                        ast_builder.visit_static_modifier(x)
+                    })?
+                    .unwrap_or(false);
+                let name = self.visit_variable_name(identifier_node)?;
+
+                match children[0].get_node_kind().as_str() {
+                    "SET" => {
+                        // SET expr SEMICOLON
+                        let value_node = children.remove(1);
+                        let value = self.visit_expr(value_node)?;
+                        Ok(ClassMemberNode::Field {
+                            name,
+                            value: Some(value),
+                            access_modifier,
+                            is_static,
+                            span,
+                        })
+                    }
+                    "SEMICOLON" => Ok(ClassMemberNode::Field {
+                        name,
+                        value: None,
+                        access_modifier,
+                        is_static,
+                        span,
+                    }),
+                    "OPEN_PAREN" => {
+                        // OPEN_PAREN args_list? CLOSED_PAREN scope_def
+                        self.handle_optional_node(&mut children, 1, "args_list".to_string());
+                        // OPEN_PAREN args_list CLOSED_PAREN scope_def
+                        let args_node = children.remove(1);
+                        // OPEN_PAREN CLOSED_PAREN scope_def
+                        let scope_node = children.remove(2);
+
+                        let arguments = self.visit_args_list(args_node)?;
+                        let body = self.handle_scope_node(scope_node)?;
+
+                        Ok(ClassMemberNode::Method {
+                            access_modifier,
+                            is_static,
+                            name,
+                            arguments,
+                            body,
+                            span,
+                        })
+                    }
+                    given_kind => ErrorBuilder::unexpected_token_kind(
+                        "STATIC",
+                        given_kind,
+                        children[0].get_node_span(),
+                    ),
+                }
+            }
+            ParserNode::Terminal(token) => {
+                ErrorBuilder::non_terminal_expected("class_member", token)
+            }
+        }
+    }
+
     fn visit_let_def(&self, node: ParserNode) -> Result<StatementNode, AstBuilderError> {
         assert_eq!(node.get_node_kind(), "let_def");
         match node {
@@ -371,10 +634,16 @@ impl AstBuilder {
             ParserNode::NonTerminal {
                 mut children, span, ..
             } => {
-                //OPEN_BRACE stmt_list CLOSED_BRACE
+                //OPEN_BRACE stmt_list? CLOSED_BRACE
+                self.handle_optional_node(&mut children, 1, "stmt_list".to_string());
+                //OPEN_BRACE stmt_list? CLOSED_BRACE
                 let stmt_list_node = children.remove(1);
 
-                let body = self.visit_stmt_list(stmt_list_node)?;
+                let body = self
+                    .visit_empty_expr_or(stmt_list_node, |ast_builder, x| {
+                        ast_builder.visit_stmt_list(x)
+                    })?
+                    .unwrap_or(Vec::new());
 
                 Ok(StatementNode::ScopeStatement { body, span })
             }
@@ -409,11 +678,6 @@ impl AstBuilder {
                 mut children, span, ..
             } => {
                 match children.len() {
-                    1 => ErrorBuilder::unknown_rule_for(
-                        "postfix_expr stmt",
-                        1,
-                        children[0].get_node_span(),
-                    ),
                     2 => {
                         let expr = children.remove(0);
                         let operation = children.remove(0);
@@ -491,11 +755,11 @@ impl AstBuilder {
                             children[0].get_node_span(),
                         )
                     }
-                    default => ErrorBuilder::unknown_rule_for("postfix_expr", default, span),
+                    default => ErrorBuilder::unknown_rule_for("postfix_expr stmt", default, span),
                 }
             }
             ParserNode::Terminal(token) => {
-                ErrorBuilder::non_terminal_expected("postfix_expr", token)
+                ErrorBuilder::non_terminal_expected("postfix_expr stmt", token)
             }
         }
     }
@@ -534,15 +798,10 @@ impl AstBuilder {
     fn visit_literal(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
         assert_eq!(node.get_node_kind(), "literal");
         match node {
-            ParserNode::NonTerminal {
-                kind,
-                span,
-                mut children,
-                ..
-            } => {
+            ParserNode::NonTerminal { mut children, .. } => {
                 let item = children.remove(0);
                 match item {
-                    ParserNode::NonTerminal { .. } => {
+                    ParserNode::NonTerminal { kind, span, .. } => {
                         ErrorBuilder::terminal_expected("literal", kind, span)
                     }
                     ParserNode::Terminal(token) => match token.kind.as_str() {
@@ -569,6 +828,7 @@ impl AstBuilder {
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("literal", token),
         }
     }
+
     fn visit_variable(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
@@ -876,8 +1136,11 @@ impl AstBuilder {
                         span,
                     });
                 }
+                if children[0].get_node_kind() == "NEW" {
+                    return self.visit_class_constructor_call(arg, children[0].get_node_span());
+                }
                 ErrorBuilder::unexpected_token_kind(
-                    "NOT or MINUS",
+                    "NOT or MINUS or INVERSE or NEW",
                     children[0].get_node_kind().as_str(),
                     children[0].get_node_span(),
                 )
@@ -885,6 +1148,30 @@ impl AstBuilder {
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("unary_expr", token),
         }
     }
+
+    fn visit_class_constructor_call(
+        &self,
+        node: ExpressionNode,
+        new_keyword_span: Span,
+    ) -> Result<ExpressionNode, AstBuilderError> {
+        match node {
+            ExpressionNode::FunctionCallExpression {
+                source,
+                arguments,
+                span,
+            } => Ok(ExpressionNode::NewExpression {
+                class: source,
+                arguments,
+                span: join_spans(new_keyword_span, span),
+            }),
+            given_node => ErrorBuilder::unexpected_syntax_node(
+                "FunctionCallExpression",
+                given_node.name(),
+                given_node.span(),
+            ),
+        }
+    }
+
     fn visit_postfix_expr(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
         assert_eq!(node.get_node_kind(), "postfix_expr");
         match node {

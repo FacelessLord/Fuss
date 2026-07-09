@@ -1,10 +1,10 @@
-use std::fmt::{Debug, Formatter};
 use crate::frontend_v0::ast_builder::nodes::CodeNode;
 use crate::frontend_v0::ast_builder::visitors::{AstBuilder, AstBuilderError};
 use crate::frontend_v0::lexer::common::lexer::{Lexer, LexerError};
 use crate::frontend_v0::lexer::regex_lexer::{RegexLexer, create_regex_lexer_from_grammar};
 use crate::frontend_v0::parser::lr1_automata_builder::build_lr1_parser;
 use crate::frontend_v0::parser::lr1_parser::{LR1Parser, ParserError};
+use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::io;
 use std::io::Read;
@@ -13,6 +13,7 @@ pub mod ast_builder;
 pub mod import_resolver;
 pub mod lexer;
 pub mod parser;
+pub mod semantic_analysis;
 
 pub struct FileAnalyzer {
     lexer: RegexLexer,
@@ -31,10 +32,10 @@ pub enum FileAnalyzerError {
 impl Debug for FileAnalyzerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileAnalyzerError::IoError(err) => {err.fmt(f)}
-            FileAnalyzerError::LexerErrors(err) => {err.fmt(f)}
-            FileAnalyzerError::ParserErrors(err) => {err.fmt(f)}
-            FileAnalyzerError::AstBuilderErrors(err) => {err.fmt(f)}
+            FileAnalyzerError::IoError(err) => err.fmt(f),
+            FileAnalyzerError::LexerErrors(err) => err.fmt(f),
+            FileAnalyzerError::ParserErrors(err) => err.fmt(f),
+            FileAnalyzerError::AstBuilderErrors(err) => err.fmt(f),
         }
     }
 }

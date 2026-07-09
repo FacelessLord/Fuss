@@ -22,11 +22,13 @@ access_modifier = PUBLIC
 access_modifier = PROTECTED
 access_modifier = PRIVATE
 
-class_scope = OPEN_BRACE class_members_list CLOSED_BRACE
+class_scope = OPEN_BRACE class_members_list? CLOSED_BRACE
+class_members_list = class_member
 class_members_list = class_members_list class_member
 class_member = access_modifier? STATIC? IDENTIFIER SET expr SEMICOLON
 class_member = access_modifier? STATIC? IDENTIFIER SEMICOLON
-class_member = access_modifier? STATIC? IDENTIFIER OPEN_PAREN args_list? CLOSED_PAREN SEMICOLON
+class_member = access_modifier? STATIC? CONSTRUCTOR OPEN_PAREN args_list? CLOSED_PAREN scope_def
+class_member = access_modifier? STATIC? IDENTIFIER OPEN_PAREN args_list? CLOSED_PAREN scope_def
 
 let_def = LET IDENTIFIER SET expr
 func_def = FUNC IDENTIFIER OPEN_PAREN args_list? CLOSED_PAREN scope_def
@@ -41,7 +43,7 @@ while_stmt = WHILE OPEN_PAREN expr CLOSED_PAREN scope_def
 
 for_stmt = FOR OPEN_PAREN let_def? SEMICOLON expr? SEMICOLON expr? CLOSED_PAREN scope_def
 
-scope_def = OPEN_BRACE stmt_list CLOSED_BRACE
+scope_def = OPEN_BRACE stmt_list? CLOSED_BRACE
 
 return_stmt = RETURN expr
 
@@ -56,11 +58,6 @@ literal_ = FLOAT_NUMBER
 literal = BOOLEAN
 literal = STRING
 literal = UNTERMINATED_STRING
-literal = object_literal
-
-object_literal = OPEN_BRACE object_field_list? CLOSED_BRACE
-object_field_list = object_field_list COMMA object_field
-object_field = IDENTIFIER COLON expr
 
 and_expr = and_expr WIDE_AND or_expr
 and_expr = and_expr AND or_expr
@@ -89,16 +86,18 @@ multiplication_expr = unary_expr
 unary_expr = NOT unary_expr
 unary_expr = INVERSE unary_expr
 unary_expr = MINUS unary_expr
+unary_expr = NEW unary_expr
 unary_expr = postfix_expr
 
 postfix_expr = primary_expr
 postfix_expr = postfix_expr DOT IDENTIFIER
 postfix_expr = postfix_expr INCREMENT
 postfix_expr = postfix_expr DECREMENT
-postfix_expr = postfix_expr OPEN_BRACKET expression_list CLOSED_BRACKET
+postfix_expr = postfix_expr OPEN_BRACKET expression_list? CLOSED_BRACKET
 postfix_expr = postfix_expr OPEN_PAREN expression_list? CLOSED_PAREN
 
 primary_expr = literal
+primary_expr = THIS
 primary_expr = IDENTIFIER
 primary_expr = OPEN_PAREN expr CLOSED_PAREN
 primary_expr = array_def

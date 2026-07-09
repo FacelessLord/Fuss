@@ -1,80 +1,114 @@
-use crate::frontend_v0::lexer::common::lexer::Position;
+use crate::frontend_v0::parser::common::parser::Span;
 
 pub struct CodeNode {
     // pub imports_list: Vec<StatementNode>,
     pub statement_list: Vec<StatementNode>,
-    pub span: (Position, Position),
+    pub span: Span,
+}
+
+pub enum AccessModifier {
+    Public,
+    Protected,
+    Private,
+}
+
+pub enum ClassMemberNode {
+    Field {
+        access_modifier: AccessModifier,
+        is_static: bool,
+        name: String,
+        value: Option<ExpressionNode>,
+        span: Span,
+    },
+    Method {
+        access_modifier: AccessModifier,
+        is_static: bool,
+        name: String,
+        arguments: Vec<String>,
+        body: Vec<StatementNode>,
+        span: Span,
+    },
 }
 
 pub enum StatementNode {
     ImportStatement {
         imported_file_name: String,
-        span: (Position, Position),
+        span: Span,
     },
     LetStatement {
         var_name: String,
         value: ExpressionNode,
-        span: (Position, Position),
+        span: Span,
     },
     FunctionDefStatement {
         func_name: String,
         arguments: Vec<String>,
         body: Vec<StatementNode>,
-        span: (Position, Position),
+        span: Span,
+    },
+    ClassDefStatement {
+        class_name: String,
+        access_modifier: AccessModifier,
+        is_static: bool,
+        body: Vec<ClassMemberNode>,
+        span: Span,
     },
     IfStatement {
         condition: ExpressionNode,
         then_branch: Vec<StatementNode>,
         else_branch: Option<Vec<StatementNode>>,
-        span: (Position, Position),
+        span: Span,
     },
     WhileStatement {
         condition: ExpressionNode,
         body: Vec<StatementNode>,
-        span: (Position, Position),
+        span: Span,
     },
     ForStatement {
         indexer_def: Option<Box<StatementNode>>,
         condition: Option<Box<ExpressionNode>>,
         update_expr: Option<Box<ExpressionNode>>,
         body: Vec<StatementNode>,
-        span: (Position, Position),
+        span: Span,
     },
     ScopeStatement {
         body: Vec<StatementNode>,
-        span: (Position, Position),
+        span: Span,
     },
     ReturnStatement {
         value: ExpressionNode,
-        span: (Position, Position),
+        span: Span,
     },
     FunctionCallStatement {
         source: ExpressionNode,
         arguments: Vec<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     SymbolAccessStatement {
         source: ExpressionNode,
         symbol: String,
-        span: (Position, Position),
+        span: Span,
     },
     ArrayAccessStatement {
         source: ExpressionNode,
         index: Vec<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     IncrementStatement {
         source: ExpressionNode,
-        span: (Position, Position),
+        span: Span,
     },
     DecrementStatement {
         source: ExpressionNode,
-        span: (Position, Position),
+        span: Span,
     },
     AssignmentStatement {
         left_side: ExpressionNode,
         right_side: ExpressionNode,
-        span: (Position, Position),
+        span: Span,
+    },
+    PassStatement {
+        span: Span,
     },
 }
 
@@ -82,132 +116,207 @@ pub enum ExpressionNode {
     AndExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     WideAndExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     OrExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     WideOrExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     XorExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     IsEqualComparison {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     NotEqualComparison {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     GreaterComparison {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     GreaterOrEqualComparison {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     LessComparison {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     LessOrEqualComparison {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     AddExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     SubtractExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     MultiplyExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     DivideExpression {
         left: Box<ExpressionNode>,
         right: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     NotExpression {
         source: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
+    },
+    NewExpression {
+        class: Box<ExpressionNode>,
+        arguments: Vec<ExpressionNode>,
+        span: Span,
     },
     InverseExpression {
         source: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     NegateExpression {
         source: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     SymbolAccessExpression {
         source: Box<ExpressionNode>,
         symbol: String,
-        span: (Position, Position),
+        span: Span,
     },
     FunctionCallExpression {
         source: Box<ExpressionNode>,
         arguments: Vec<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     IndexAccessExpression {
         source: Box<ExpressionNode>,
         index: Vec<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     IncrementExpression {
         source: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     DecrementExpression {
         source: Box<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
     Variable {
         name: String,
-        span: (Position, Position),
+        span: Span,
     },
     // TODO float
     NumberLiteral {
         value: i32,
-        span: (Position, Position),
+        span: Span,
     },
     BooleanLiteral {
         value: bool,
-        span: (Position, Position),
+        span: Span,
     },
     StringLiteral {
         value: String,
-        span: (Position, Position),
+        span: Span,
     },
     ArrayDefinition {
         elements: Vec<ExpressionNode>,
-        span: (Position, Position),
+        span: Span,
     },
+}
+
+impl ExpressionNode {
+    pub fn span(&self) -> Span {
+        match self {
+            ExpressionNode::AndExpression { span, .. } => span.clone(),
+            ExpressionNode::WideAndExpression { span, .. } => span.clone(),
+            ExpressionNode::OrExpression { span, .. } => span.clone(),
+            ExpressionNode::WideOrExpression { span, .. } => span.clone(),
+            ExpressionNode::XorExpression { span, .. } => span.clone(),
+            ExpressionNode::IsEqualComparison { span, .. } => span.clone(),
+            ExpressionNode::NotEqualComparison { span, .. } => span.clone(),
+            ExpressionNode::GreaterComparison { span, .. } => span.clone(),
+            ExpressionNode::GreaterOrEqualComparison { span, .. } => span.clone(),
+            ExpressionNode::LessComparison { span, .. } => span.clone(),
+            ExpressionNode::LessOrEqualComparison { span, .. } => span.clone(),
+            ExpressionNode::AddExpression { span, .. } => span.clone(),
+            ExpressionNode::SubtractExpression { span, .. } => span.clone(),
+            ExpressionNode::MultiplyExpression { span, .. } => span.clone(),
+            ExpressionNode::DivideExpression { span, .. } => span.clone(),
+            ExpressionNode::NotExpression { span, .. } => span.clone(),
+            ExpressionNode::NewExpression { span, .. } => span.clone(),
+            ExpressionNode::InverseExpression { span, .. } => span.clone(),
+            ExpressionNode::NegateExpression { span, .. } => span.clone(),
+            ExpressionNode::SymbolAccessExpression { span, .. } => span.clone(),
+            ExpressionNode::FunctionCallExpression { span, .. } => span.clone(),
+            ExpressionNode::IndexAccessExpression { span, .. } => span.clone(),
+            ExpressionNode::IncrementExpression { span, .. } => span.clone(),
+            ExpressionNode::DecrementExpression { span, .. } => span.clone(),
+            ExpressionNode::Variable { span, .. } => span.clone(),
+            ExpressionNode::NumberLiteral { span, .. } => span.clone(),
+            ExpressionNode::BooleanLiteral { span, .. } => span.clone(),
+            ExpressionNode::StringLiteral { span, .. } => span.clone(),
+            ExpressionNode::ArrayDefinition { span, .. } => span.clone(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            ExpressionNode::AndExpression { .. } => "AndExpression",
+            ExpressionNode::WideAndExpression { .. } => "WideAndExpression",
+            ExpressionNode::OrExpression { .. } => "OrExpression",
+            ExpressionNode::WideOrExpression { .. } => "WideOrExpression",
+            ExpressionNode::XorExpression { .. } => "XorExpression",
+            ExpressionNode::IsEqualComparison { .. } => "IsEqualComparison",
+            ExpressionNode::NotEqualComparison { .. } => "NotEqualComparison",
+            ExpressionNode::GreaterComparison { .. } => "GreaterComparison",
+            ExpressionNode::GreaterOrEqualComparison { .. } => "GreaterOrEqualComparison",
+            ExpressionNode::LessComparison { .. } => "LessComparison",
+            ExpressionNode::LessOrEqualComparison { .. } => "LessOrEqualComparison",
+            ExpressionNode::AddExpression { .. } => "AddExpression",
+            ExpressionNode::SubtractExpression { .. } => "SubtractExpression",
+            ExpressionNode::MultiplyExpression { .. } => "MultiplyExpression",
+            ExpressionNode::DivideExpression { .. } => "DivideExpression",
+            ExpressionNode::NotExpression { .. } => "NotExpression",
+            ExpressionNode::NewExpression { .. } => "NewExpression",
+            ExpressionNode::InverseExpression { .. } => "InverseExpression",
+            ExpressionNode::NegateExpression { .. } => "NegateExpression",
+            ExpressionNode::SymbolAccessExpression { .. } => "SymbolAccessExpression",
+            ExpressionNode::FunctionCallExpression { .. } => "FunctionCallExpression",
+            ExpressionNode::IndexAccessExpression { .. } => "IndexAccessExpression",
+            ExpressionNode::IncrementExpression { .. } => "IncrementExpression",
+            ExpressionNode::DecrementExpression { .. } => "DecrementExpression",
+            ExpressionNode::Variable { .. } => "Variable",
+            ExpressionNode::NumberLiteral { .. } => "NumberLiteral",
+            ExpressionNode::BooleanLiteral { .. } => "BooleanLiteral",
+            ExpressionNode::StringLiteral { .. } => "StringLiteral",
+            ExpressionNode::ArrayDefinition { .. } => "ArrayDefinition",
+        }
+    }
 }

@@ -1,7 +1,7 @@
 use crate::char_len;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Position {
     pub filename: String,
     pub line: usize,

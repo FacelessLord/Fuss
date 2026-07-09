@@ -1,9 +1,14 @@
-
+public class ArrayList {
+    public push(value) {}
+}
 
 func main(par1, par2, par3) {
     let a = 1;
     let b = 1;
     let x = [1];
+    let x = [];
+    let x = new ArrayList();
+    let x = new x.a();
 
     for(;;) {
         log(a);

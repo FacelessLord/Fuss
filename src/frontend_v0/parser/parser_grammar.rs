@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{Error, Read};
 
@@ -8,6 +9,18 @@ pub struct ParserGrammar {
 pub struct ParserGrammarRule {
     pub name: String,
     pub production: Vec<String>,
+}
+
+impl Display for ParserGrammarRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let production = self.production.clone();
+        write!(
+            f,
+            "{0} -> {1}",
+            self.name,
+            production.join::<_>(&String::from(" "))
+        )
+    }
 }
 
 struct ParserRawGrammar {

@@ -16,6 +16,8 @@ STATIC = static
 PUBLIC = public
 PROTECTED = protected
 PRIVATE = private
+CONSTRUCTOR = constructor
+NEW = new
 EXTENDS = extends
 
 OPEN_PAREN = \(

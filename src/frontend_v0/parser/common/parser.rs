@@ -57,3 +57,7 @@ pub fn join_node_spans(first: &ParserNode, second: &ParserNode) -> Span {
     let second_span = second.get_node_span();
     (first_span.0.clone(), second_span.1.clone())
 }
+
+pub fn join_spans(first: Span, second: Span) -> Span {
+    (first.0.clone(), second.1.clone())
+}
