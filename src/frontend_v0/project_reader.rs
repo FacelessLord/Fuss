@@ -1,22 +1,26 @@
 use crate::frontend_v0::ast_builder::nodes::{CodeNode, ExpressionNode, StatementNode};
-use crate::frontend_v0::ast_builder::visitors::{AstBuilderError, ErrorBuilder, first_err};
+use crate::frontend_v0::errors::ast_errors::AstBuilderError;
+use crate::frontend_v0::errors::ast_errors::ErrorBuilder;
 use crate::frontend_v0::file_analyzer::{FileAnalyzer, FileAnalyzerError};
+use crate::frontend_v0::message_controller::MessageController;
 use std::collections::{HashMap, VecDeque};
 
 struct ProjectReader {
     file_analyzer: FileAnalyzer,
+    message_controller: MessageController,
 }
 
 impl ProjectReader {
     pub fn new() -> ProjectReader {
         ProjectReader {
             file_analyzer: FileAnalyzer::new(),
+            message_controller: MessageController::new(),
         }
     }
     pub fn read_project(
         &mut self,
         main_path: String,
-    ) -> HashMap<String, Result<CodeNode, FileAnalyzerError>> {
+    ) -> HashMap<String, CodeNode> {
         let mut file_cache = HashMap::new();
 
         let mut queue = VecDeque::new();
@@ -59,7 +63,6 @@ impl ProjectReader {
     }
 }
 
-
 fn get_imported_file_path(node: StatementNode) -> Result<String, AstBuilderError> {
     if let StatementNode::ImportStatement {
         imported_file_name, ..
@@ -71,10 +74,10 @@ fn get_imported_file_path(node: StatementNode) -> Result<String, AstBuilderError
             ErrorBuilder::unexpected_syntax_node(
                 "StringLiteral",
                 imported_file_name.name(),
-                imported_file_name.span(),
+                imported_file_name.span().0,
             )
         }
     } else {
-        ErrorBuilder::unexpected_syntax_node("StringLiteral", node.name(), node.span())
+        ErrorBuilder::unexpected_syntax_node("StringLiteral", node.name(), node.span().0)
     }
 }

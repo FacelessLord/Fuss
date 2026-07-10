@@ -1,4 +1,6 @@
 use crate::collections::stable_ordered_set::StableOrderedSet;
+use crate::frontend_v0::parser::hydration::dehydrate_state;
+use crate::frontend_v0::parser::lr0_goto_table::LR0GotoTable;
 use crate::frontend_v0::parser::lr1_parser::LR1Parser;
 use crate::frontend_v0::parser::parser_grammar::{ParserGrammar, read_parser_grammar};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -63,7 +65,7 @@ pub struct LR1ParserItem {
     source: String,
     marker_pos: usize,
     production: Vec<String>,
-    lookahead: HashSet<String>,
+    pub(crate) lookahead: HashSet<String>,
     rule_id: usize,
 }
 impl LR1ParserItem {
@@ -154,150 +156,6 @@ impl Display for LR1ParserItem {
 }
 
 const MARKER_CHARACTER: char = '•';
-
-struct LR0GotoTable {
-    maps: HashMap<usize, HashMap<String, LR1ParserAction>>,
-}
-
-impl LR0GotoTable {
-    fn new() -> LR0GotoTable {
-        LR0GotoTable {
-            maps: HashMap::new(),
-        }
-    }
-    fn add_entry(
-        &mut self,
-        start: usize,
-        token: String,
-        target: usize,
-        grammar: &ParserGrammar,
-        all_states: &StableOrderedSet<Vec<usize>>,
-        all_items: &StableOrderedSet<LR1ParserItem>,
-    ) {
-        if !self.maps.contains_key(&start) {
-            self.maps.insert(start, HashMap::new());
-        }
-        let available_connections = self.maps.get_mut(&start).unwrap();
-
-        let result = available_connections.insert(token.clone(), LR1ParserAction::Shift(target));
-        if result.is_some() {
-            println!(
-                "Got some shift overriding in {0} -({1})> {2}",
-                start, token, target
-            );
-            println!("Source state ({}):", start);
-            let hydrated_source_state =
-                Self::hydrate_state(start, all_states, all_items);
-            println!(
-                "{}",
-                hydrated_source_state
-                    .iter()
-                    .map(|x| format!("{}", x))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            );
-            println!("Target state ({}):", target);
-            let hydrated_target_state =
-                Self::hydrate_state(target, all_states, all_items);
-            println!(
-                "{}",
-                hydrated_target_state
-                    .iter()
-                    .map(|x| format!("{}", x))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            );
-        }
-    }
-    fn add_reduces(
-        &mut self,
-        start: usize,
-        lookaheads: &HashSet<String>,
-        rule: usize,
-        grammar: &ParserGrammar,
-        all_states: &StableOrderedSet<Vec<usize>>,
-        all_items: &StableOrderedSet<LR1ParserItem>,
-    ) {
-        if !self.maps.contains_key(&start) {
-            self.maps.insert(start, HashMap::new());
-        }
-        let available_connections = self.maps.get_mut(&start).unwrap();
-        for token in lookaheads {
-            let result = available_connections.insert(token.clone(), LR1ParserAction::Reduce(rule));
-            if result.is_some() {
-                let some_result = result.unwrap();
-                match some_result {
-                    LR1ParserAction::Shift(target_state) => {
-                        println!(
-                            "Got some shift->reduce overriding in {0} -({1})> {2}",
-                            start, token, rule
-                        );
-
-                        println!("Source state ({}):", start);
-                        let hydrated_source_state =
-                            Self::hydrate_state(start, all_states, all_items);
-                        println!(
-                            "{}",
-                            hydrated_source_state
-                                .iter()
-                                .map(|x| format!("{}", x))
-                                .collect::<Vec<String>>()
-                                .join("\n")
-                        );
-                        println!("Primary target state ({}):", start);
-                        let hydrated_target_state =
-                            Self::hydrate_state(target_state, all_states, all_items);
-                        println!(
-                            "{}",
-                            hydrated_target_state
-                                .iter()
-                                .map(|x| format!("{}", x))
-                                .collect::<Vec<String>>()
-                                .join("\n")
-                        );
-                    }
-                    LR1ParserAction::Reduce(rule_number) => {
-                        if rule_number != rule {
-                            println!(
-                                "Got some reduce({0})->reduce({1}) overriding in {2} -({3})> {4}",
-                                rule_number, rule, start, token, rule
-                            );
-                            println!("Source state ({}):", start);
-                            let hydrated_source_state =
-                                Self::hydrate_state(start, all_states, all_items);
-                            println!(
-                                "{}",
-                                hydrated_source_state
-                                    .iter()
-                                    .map(|x| format!(" - {}", x))
-                                    .collect::<Vec<String>>()
-                                    .join("\n")
-                            );
-                            println!(
-                                "Primary reduction rule ({}): {}",
-                                rule_number, grammar.rules[rule_number]
-                            );
-                            println!("Final reduction rule ({}): {}", rule, grammar.rules[rule]);
-                            println!();
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn hydrate_state(
-        state_id: usize,
-        all_states: &StableOrderedSet<Vec<usize>>,
-        all_items: &StableOrderedSet<LR1ParserItem>,
-    ) -> Vec<LR1ParserItem> {
-        let state = all_states[state_id].clone();
-        state
-            .into_iter()
-            .map(|x| all_items[x].clone())
-            .collect::<Vec<_>>()
-    }
-}
 
 pub struct LR1Automata {
     pub grammar: ParserGrammar,
@@ -390,7 +248,7 @@ fn build_automata_states(
     let mut all_items = StableOrderedSet::<LR1ParserItem>::new();
 
     let mut all_states = StableOrderedSet::<Vec<usize>>::new(); //Vec::new();
-    let remapped_state = remap_state(starting_state, &mut all_items);
+    let remapped_state = dehydrate_state(starting_state, &mut all_items);
     all_states.insert(remapped_state);
 
     let mut goto_table = LR0GotoTable::new();
@@ -408,7 +266,7 @@ fn build_automata_states(
                         .and_then(|x| x.consume_token(token.clone()))
                 })
                 .collect::<Vec<LR1ParserItem>>();
-            let new_state = remap_state(
+            let new_state = dehydrate_state(
                 build_state_for_items(token_alphabet, grammar, known_items),
                 &mut all_items,
             );
@@ -435,31 +293,6 @@ fn build_automata_states(
         }
     }
     (all_states, all_items, goto_table)
-}
-
-fn remap_state(
-    state: Vec<LR1ParserItem>,
-    all_items: &mut StableOrderedSet<LR1ParserItem>,
-) -> Vec<usize> {
-    let mut remapped_state = Vec::new();
-
-    for item in state {
-        if !all_items.contains(&item) {
-            remapped_state.push(all_items.len());
-            all_items.insert(item);
-        } else {
-            let item_index = all_items.get_index_of(&item).unwrap();
-            all_items
-                .get_index_mut(item_index)
-                .unwrap()
-                .lookahead
-                .extend(item.lookahead.iter().cloned());
-            remapped_state.push(item_index);
-        }
-    }
-
-    remapped_state.sort();
-    remapped_state
 }
 
 fn create_starting_state(

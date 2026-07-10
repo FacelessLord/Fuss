@@ -1,13 +1,17 @@
 use crate::frontend_v0::ast_builder::nodes::CodeNode;
-use crate::frontend_v0::ast_builder::visitors::{AstBuilder, AstBuilderError};
-use crate::frontend_v0::lexer::common::lexer::{Lexer, LexerError};
-use crate::frontend_v0::lexer::regex_lexer::{RegexLexer, create_regex_lexer_from_grammar};
+use crate::frontend_v0::ast_builder::visitors::AstBuilder;
+use crate::frontend_v0::errors::ast_errors::AstBuilderError;
+use crate::frontend_v0::errors::lexer_errors::LexerError;
+use crate::frontend_v0::errors::parser_errors::ParserError;
+use crate::frontend_v0::lexer::common::lexer::Lexer;
+use crate::frontend_v0::lexer::regex_lexer::{create_regex_lexer_from_grammar, RegexLexer};
 use crate::frontend_v0::parser::lr1_automata_builder::build_lr1_parser;
-use crate::frontend_v0::parser::lr1_parser::{LR1Parser, ParserError};
-use std::fmt::{Debug, Formatter};
+use crate::frontend_v0::parser::lr1_parser::LR1Parser;
+use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::io;
 use std::io::Read;
+use crate::frontend_v0::message_controller::MessageController;
 
 pub enum FileAnalyzerError {
     IoError(io::Error),
@@ -17,11 +21,11 @@ pub enum FileAnalyzerError {
 }
 
 // TODO normal error formatting
-impl Debug for FileAnalyzerError {
+impl Display for FileAnalyzerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileAnalyzerError::IoError(err) => err.fmt(f),
-            FileAnalyzerError::LexerErrors(err) => err.fmt(f),
+            FileAnalyzerError::IoError(err) => Display::fmt(&err, f),
+            FileAnalyzerError::LexerErrors(err) => Display::fmt(f),
             FileAnalyzerError::ParserErrors(err) => err.fmt(f),
             FileAnalyzerError::AstBuilderErrors(err) => err.fmt(f),
         }
@@ -44,15 +48,16 @@ impl FileAnalyzer {
         FileAnalyzer {
             lexer,
             parser,
-            ast_builder: AstBuilder {},
+            ast_builder: AstBuilder {}
         }
     }
-    pub fn build_ast_from_file(&mut self, filename: String) -> Result<CodeNode, FileAnalyzerError> {
+    pub fn build_ast_from_file(&mut self, filename: String, message_controller: &MessageController) -> Result<CodeNode, FileAnalyzerError> {
         let file_text = self
             .read_file(filename.clone())
-            .map_err(|e| FileAnalyzerError::IoError(e))?;
+            .map_err(|e| FileAnalyzerError::IoError(e));
 
-        let (tokens, errors) = self.lexer.tokenize(&filename, file_text);
+
+        let (tokens, errors) = self.lexer.tokenize(&filename, file_text, message_controller);
         if errors.len() > 0 {
             return Err(FileAnalyzerError::LexerErrors(errors));
         }
@@ -61,7 +66,7 @@ impl FileAnalyzer {
             .filter(|x| x.kind != "COMMENT")
             .collect::<Vec<_>>();
 
-        let (parse_tree, errors) = self.parser.parse(&tokens);
+        let (parse_tree, errors) = self.parser.parse(&tokens, message_controller);
         self.parser.reset();
 
         if errors.len() > 0 {
@@ -69,7 +74,7 @@ impl FileAnalyzer {
         }
 
         self.ast_builder
-            .visit_code(parse_tree)
+            .visit_code(parse_tree, message_controller)
             .map_err(|x| FileAnalyzerError::AstBuilderErrors(Vec::from([x])))
     }
 

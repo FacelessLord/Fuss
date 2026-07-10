@@ -1,47 +1,13 @@
-use crate::frontend_v0::lexer::common::lexer::{Position, Token};
-use crate::frontend_v0::parser::common::parser::{join_node_spans, ParserNode};
+use crate::frontend_v0::errors::parser_errors::ParserError;
+use crate::frontend_v0::lexer::common::lexer::Token;
+use crate::frontend_v0::parser::common::parser::{ParserNode, join_node_spans};
 use crate::frontend_v0::parser::lr1_automata_builder::{LR1Automata, LR1ParserAction};
 use std::collections::{HashSet, VecDeque};
-use std::fmt::Debug;
 
 pub struct LR1Parser {
     automata: LR1Automata,
     state: usize,
     stack: Vec<(usize, ParserNode)>,
-}
-
-pub enum ParserError {
-    UnexpectedToken(ParserNode, Position, HashSet<String>),
-}
-
-impl ParserError {
-    pub fn get_message(&self) -> String {
-        match self {
-            &ParserError::UnexpectedToken(ref token, ref position, ref _expected_tokens) => {
-                format!(
-                    "{message} at {file}:{line}:{column}",
-                    message = format!(
-                        "Unexpected token {0}. Expected ",
-                        token.get_node_kind(),
-                        // expected_tokens
-                        //     .iter()
-                        //     .map(|x| x.clone())
-                        //     .collect::<Vec<String>>()
-                        //     .join(", ")
-                    ),
-                    file = position.filename,
-                    line = position.line,
-                    column = position.column
-                )
-            }
-        }
-    }
-}
-
-impl Debug for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.get_message())
-    }
 }
 
 impl LR1Parser {
@@ -52,7 +18,7 @@ impl LR1Parser {
             stack: vec![],
         }
     }
-    
+
     pub fn reset(&mut self) {
         self.state = 0;
         self.stack = vec![];
@@ -73,14 +39,14 @@ impl LR1Parser {
 
             let node_kind = current_token.get_node_kind();
             let action = self.automata.goto_table[self.state].get(&node_kind).ok_or(
-                ParserError::UnexpectedToken(
-                    current_token.clone(),
-                    current_token.get_node_start(),
-                    self.automata.goto_table[self.state]
+                ParserError::UnexpectedToken {
+                    given_token_kind: current_token.get_node_kind(),
+                    position: current_token.get_node_start(),
+                    expected_token_kinds: self.automata.goto_table[self.state]
                         .iter()
                         .map(|(x, _)| x.clone())
                         .collect::<HashSet<String>>(),
-                ),
+                },
             );
             match action {
                 Ok(parser_action) => match parser_action {

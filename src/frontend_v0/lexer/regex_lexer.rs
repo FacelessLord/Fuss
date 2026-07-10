@@ -1,9 +1,11 @@
 use crate::char_len;
-use crate::frontend_v0::lexer::common::lexer::{Lexer, LexerError, Position, Token, EOF};
+use crate::frontend_v0::errors::lexer_errors::LexerError;
+use crate::frontend_v0::lexer::common::lexer::{EOF, Lexer, Position, Token};
 use crate::frontend_v0::lexer::common::lexer_raw_grammar::read_raw_lexer_grammar;
 use crate::frontend_v0::lexer::lexer_regex_grammar::{
-    process_grammar, LexerRegexGrammar, LexerRegexGrammarRule,
+    LexerRegexGrammar, LexerRegexGrammarRule, process_grammar,
 };
+use crate::frontend_v0::message_controller::MessageController;
 use regex::Regex;
 use std::collections::HashSet;
 use std::io::Error;
@@ -15,7 +17,7 @@ pub struct RegexLexer {
 }
 
 impl Lexer for RegexLexer {
-    fn tokenize(&self, filename: &String, file: String) -> (Vec<Token>, Vec<LexerError>) {
+    fn tokenize(&mut self, filename: &String, file: String, message_controller: &MessageController) -> (Vec<Token>, Vec<LexerError>) {
         let empty_rule: LexerRegexGrammarRule = LexerRegexGrammarRule {
             name: String::from("EMPTY"),
             regex: Regex::new("").unwrap(),
@@ -31,6 +33,9 @@ impl Lexer for RegexLexer {
         for line in lines {
             let mut buffer = line.to_string();
             let mut column = 0;
+
+            let mut unexpected_symbols = String::new();
+            let mut unexpected_character_start = None;
 
             while !buffer.is_empty() {
                 let trimmed_buffer = buffer.trim_start().to_string();
@@ -60,11 +65,21 @@ impl Lexer for RegexLexer {
                 }
 
                 if max_rule.name == empty_rule.name {
-                    errors.push(LexerError::new(
-                        format!("unknown char sequence \"{0}\"", buffer),
-                        position,
-                    ));
+                    unexpected_symbols += buffer.remove(0).to_string().as_str();
+                    if let None = unexpected_character_start {
+                        unexpected_character_start = Some(position);
+                    }
                     break;
+                }
+                if unexpected_symbols.len() > 0 {
+                    self.message_controller.accept_lexer_error(
+                        LexerError::UnknownCharSequence {
+                            sequence: unexpected_symbols,
+                        },
+                        unexpected_character_start.unwrap(),
+                    );
+                    unexpected_character_start = None;
+                    unexpected_symbols = String::new();
                 }
 
                 let matched_string = buffer[..max_len].to_string();
@@ -79,8 +94,19 @@ impl Lexer for RegexLexer {
 
                 column = column + max_len;
             }
+            // If found nothing till the end of line
+            if unexpected_symbols.len() > 0 {
+                self.message_controller.accept_lexer_error(
+                    LexerError::UnknownCharSequence {
+                        sequence: unexpected_symbols,
+                    },
+                    unexpected_character_start.unwrap(),
+                );
+            }
+
             line_number += 1;
         }
+
         tokens.push(Token {
             text: "".to_string(),
             kind: EOF.to_string(),
@@ -116,7 +142,9 @@ fn match_rules<'a>(
     (max_rule, max_len)
 }
 
-pub fn create_regex_lexer_from_grammar(grammar_filename: &String) -> Result<RegexLexer, Error> {
+pub fn create_regex_lexer_from_grammar(
+    grammar_filename: &String
+) -> Result<RegexLexer, Error> {
     let filename = String::from(grammar_filename);
     let (grammar, alphabet) = read_raw_lexer_grammar(&filename)?;
     let regex_grammar = process_grammar(grammar);

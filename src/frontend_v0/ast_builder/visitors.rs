@@ -1,160 +1,9 @@
-use crate::frontend_v0::ast_builder::nodes::StatementNode::ImportStatement;
 use crate::frontend_v0::ast_builder::nodes::{
     AccessModifier, ClassMemberNode, CodeNode, ExpressionNode, StatementNode,
 };
-use crate::frontend_v0::lexer::common::lexer::{Position, Token};
-use crate::frontend_v0::parser::common::parser::{ParserNode, Span, join_node_spans, join_spans};
+use crate::frontend_v0::errors::ast_errors::{AstBuilderError, ErrorBuilder};
+use crate::frontend_v0::parser::common::parser::{ParserNode, Span, join_spans};
 use std::cmp::min;
-use std::fmt::{Debug, Formatter};
-
-pub enum AstBuilderError {
-    TerminalExpected {
-        expected_node: String,
-        given_token_kind: String,
-        span: Span,
-    },
-    NonTerminalExpected {
-        expected_node: String,
-        given_token: Token,
-    },
-    UnknownRule {
-        expected_node: String,
-        given_token_amount: usize,
-        span: Span,
-    },
-    UnexpectedTokenKind {
-        expected_node: String,
-        given_token_kind: String,
-        span: Span,
-    },
-    UnexpectedSyntaxNode {
-        expected_node: String,
-        given_node: String,
-        span: Span,
-    },
-}
-
-impl Debug for AstBuilderError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AstBuilderError::TerminalExpected {
-                expected_node,
-                given_token_kind,
-                span,
-            } => {
-                write!(
-                    f,
-                    "Expected terminal {}, but got {} at {}",
-                    expected_node, given_token_kind, span.0
-                )
-            }
-            AstBuilderError::NonTerminalExpected {
-                expected_node,
-                given_token,
-            } => {
-                write!(
-                    f,
-                    "Expected non-terminal {}, but got {} at {}",
-                    expected_node,
-                    given_token.kind.clone(),
-                    given_token.position
-                )
-            }
-            AstBuilderError::UnknownRule {
-                given_token_amount,
-                expected_node,
-                span,
-            } => {
-                write!(
-                    f,
-                    "Found unknown rule at production size {}, but got {} at {}",
-                    given_token_amount, expected_node, span.0
-                )
-            }
-            AstBuilderError::UnexpectedTokenKind {
-                expected_node,
-                given_token_kind,
-                span,
-            } => {
-                write!(
-                    f,
-                    "Expected {}, but got {} at {}",
-                    expected_node, given_token_kind, span.0
-                )
-            }
-            AstBuilderError::UnexpectedSyntaxNode {
-                expected_node,
-                given_node,
-                span,
-            } => {
-                write!(
-                    f,
-                    "Expected {}, but got {} at {}",
-                    expected_node, given_node, span.0
-                )
-            }
-        }
-    }
-}
-
-// TODO move to separate file
-pub struct ErrorBuilder {}
-
-impl ErrorBuilder {
-    pub fn terminal_expected<T>(
-        expected_node: &str,
-        given_token_kind: String,
-        span: Span,
-    ) -> Result<T, AstBuilderError> {
-        Err(AstBuilderError::TerminalExpected {
-            expected_node: expected_node.to_string(),
-            given_token_kind,
-            span,
-        })
-    }
-    pub fn non_terminal_expected<T>(
-        expected_node: &str,
-        given_token: Token,
-    ) -> Result<T, AstBuilderError> {
-        Err(AstBuilderError::NonTerminalExpected {
-            expected_node: expected_node.to_string(),
-            given_token,
-        })
-    }
-    pub fn unknown_rule_for<T>(
-        expected_node: &str,
-        given_token_amount: usize,
-        span: Span,
-    ) -> Result<T, AstBuilderError> {
-        Err(AstBuilderError::UnknownRule {
-            expected_node: expected_node.to_string(),
-            given_token_amount,
-            span,
-        })
-    }
-    pub fn unexpected_token_kind<T>(
-        expected_node: &str,
-        given_token_kind: &str,
-        span: Span,
-    ) -> Result<T, AstBuilderError> {
-        Err(AstBuilderError::UnexpectedTokenKind {
-            expected_node: expected_node.to_string(),
-            given_token_kind: given_token_kind.to_string(),
-            span,
-        })
-    }
-    pub fn unexpected_syntax_node<T>(
-        expected_node: &str,
-        given_node: &str,
-        span: Span,
-    ) -> Result<T, AstBuilderError> {
-        Err(AstBuilderError::UnexpectedSyntaxNode {
-            expected_node: expected_node.to_string(),
-            given_node: given_node.to_string(),
-            span,
-        })
-    }
-}
 
 pub struct AstBuilder {}
 
@@ -169,7 +18,7 @@ impl AstBuilder {
                 span,
             } => {
                 if kind != "code" {
-                    return ErrorBuilder::unexpected_token_kind("code", kind.as_str(), span);
+                    return ErrorBuilder::unexpected_token_kind("code", kind.as_str(), span.0);
                 }
                 let stmt_tree = children.remove(0);
                 let statement_list = self.visit_stmt_list(stmt_tree)?;
@@ -226,7 +75,7 @@ impl AstBuilder {
                     kind => ErrorBuilder::unexpected_token_kind(
                         "something_def or return_stmt or postfix_expr",
                         kind,
-                        inner_statement_node.get_node_span(),
+                        inner_statement_node.get_node_start(),
                     ),
                 }
             }
@@ -238,7 +87,7 @@ impl AstBuilder {
         assert_eq!(node.get_node_kind(), "EXTERN");
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
-                ErrorBuilder::terminal_expected("EXTERN", kind, span)
+                ErrorBuilder::terminal_expected("EXTERN", kind, span.0)
             }
             ParserNode::Terminal(token) => Ok(StatementNode::ExternStatement {
                 span: (token.position.clone(), token.get_end_position()),
@@ -324,7 +173,7 @@ impl AstBuilder {
                     ParserNode::NonTerminal { kind, .. } => ErrorBuilder::terminal_expected(
                         "PUBLIC or PROTECTED or PRIVATE",
                         kind,
-                        span,
+                        span.0,
                     ),
                     ParserNode::Terminal(token) => match token.kind.as_str() {
                         "PUBLIC" => Ok(AccessModifier::Public),
@@ -333,7 +182,7 @@ impl AstBuilder {
                         given_kind => ErrorBuilder::unexpected_token_kind(
                             "PUBLIC or PROTECTED or PRIVATE",
                             given_kind,
-                            span,
+                            span.0,
                         ),
                     },
                 }
@@ -346,12 +195,9 @@ impl AstBuilder {
     fn visit_static_modifier(&self, node: ParserNode) -> Result<bool, AstBuilderError> {
         assert_eq!(node.get_node_kind(), "STATIC");
         match node {
-            ParserNode::NonTerminal {
-                mut children,
-                span,
-                kind,
-                ..
-            } => ErrorBuilder::terminal_expected("STATIC", kind, span),
+            ParserNode::NonTerminal { span, kind, .. } => {
+                ErrorBuilder::terminal_expected("STATIC", kind, span.0)
+            }
             ParserNode::Terminal(token) => {
                 if token.kind.as_str() == "STATIC" {
                     return Ok(true);
@@ -360,7 +206,7 @@ impl AstBuilder {
                 ErrorBuilder::unexpected_token_kind(
                     "STATIC",
                     token.kind.as_str(),
-                    (token.position.clone(), token.get_end_position()),
+                    token.position.clone(),
                 )
             }
         }
@@ -515,7 +361,7 @@ impl AstBuilder {
                     given_kind => ErrorBuilder::unexpected_token_kind(
                         "STATIC",
                         given_kind,
-                        children[0].get_node_span(),
+                        children[0].get_node_start(),
                     ),
                 }
             }
@@ -589,7 +435,7 @@ impl AstBuilder {
             .into_iter()
             .map(|x| match x {
                 ParserNode::NonTerminal { kind, span, .. } => {
-                    ErrorBuilder::terminal_expected("IDENTIFIER", kind, span)
+                    ErrorBuilder::terminal_expected("IDENTIFIER", kind, span.0)
                 }
                 ParserNode::Terminal(token) => Ok(token.text),
             })
@@ -767,7 +613,7 @@ impl AstBuilder {
                             node_kind => ErrorBuilder::unexpected_token_kind(
                                 "INCREMENT or DECREMENT",
                                 node_kind,
-                                children[1].get_node_span(),
+                                children[1].get_node_start(),
                             ),
                         }
                     }
@@ -797,7 +643,7 @@ impl AstBuilder {
                         ErrorBuilder::unexpected_token_kind(
                             "DOT or OPEN_PAREN",
                             expr_kind.as_str(),
-                            children[1].get_node_span(),
+                            children[1].get_node_start(),
                         )
                     }
                     4 => {
@@ -826,10 +672,10 @@ impl AstBuilder {
                         ErrorBuilder::unexpected_token_kind(
                             "OPEN_PAREN or OPEN_BRACKET",
                             expr_kind.as_str(),
-                            children[0].get_node_span(),
+                            children[0].get_node_start(),
                         )
                     }
-                    default => ErrorBuilder::unknown_rule_for("postfix_expr stmt", default, span),
+                    default => ErrorBuilder::unknown_rule_for("postfix_expr stmt", default, span.0),
                 }
             }
             ParserNode::Terminal(token) => {
@@ -883,7 +729,7 @@ impl AstBuilder {
                     default => ErrorBuilder::unexpected_token_kind(
                         "NUMBER or BOOLEAN or STRING",
                         default,
-                        span,
+                        span.0,
                     ),
                 }
             }
@@ -895,7 +741,7 @@ impl AstBuilder {
         assert_eq!(node.get_node_kind(), "STRING");
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
-                ErrorBuilder::terminal_expected("STRING", kind, span)
+                ErrorBuilder::terminal_expected("STRING", kind, span.0)
             }
             ParserNode::Terminal(token) => Ok(ExpressionNode::StringLiteral {
                 value: token.text.clone(),
@@ -907,7 +753,7 @@ impl AstBuilder {
         assert_eq!(node.get_node_kind(), "BOOLEAN");
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
-                ErrorBuilder::terminal_expected("BOOLEAN", kind, span)
+                ErrorBuilder::terminal_expected("BOOLEAN", kind, span.0)
             }
             ParserNode::Terminal(token) => Ok(ExpressionNode::BooleanLiteral {
                 value: token.text.clone().parse::<bool>().unwrap(),
@@ -919,7 +765,7 @@ impl AstBuilder {
         assert_eq!(node.get_node_kind(), "NUMBER");
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
-                ErrorBuilder::terminal_expected("NUMBER", kind, span)
+                ErrorBuilder::terminal_expected("NUMBER", kind, span.0)
             }
             ParserNode::Terminal(token) => Ok(ExpressionNode::NumberLiteral {
                 value: token.text.clone().parse::<i32>().unwrap(),
@@ -931,7 +777,7 @@ impl AstBuilder {
     fn visit_variable(&self, node: ParserNode) -> Result<ExpressionNode, AstBuilderError> {
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
-                ErrorBuilder::terminal_expected("IDENTIFIER", kind, span)
+                ErrorBuilder::terminal_expected("IDENTIFIER", kind, span.0)
             }
             ParserNode::Terminal(token) => Ok(ExpressionNode::Variable {
                 name: token.text.clone(),
@@ -942,7 +788,7 @@ impl AstBuilder {
     fn visit_variable_name(&self, node: ParserNode) -> Result<String, AstBuilderError> {
         match node {
             ParserNode::NonTerminal { kind, span, .. } => {
-                ErrorBuilder::terminal_expected("IDENTIFIER", kind, span)
+                ErrorBuilder::terminal_expected("IDENTIFIER", kind, span.0)
             }
             ParserNode::Terminal(token) => Ok(token.text),
         }
@@ -988,7 +834,7 @@ impl AstBuilder {
                 ErrorBuilder::unexpected_token_kind(
                     "WIDE_AND or AND",
                     expr_kind.as_str(),
-                    children[0].get_node_span(),
+                    children[0].get_node_start(),
                 )
             }
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("and_expr", token),
@@ -1037,7 +883,7 @@ impl AstBuilder {
                 ErrorBuilder::unexpected_token_kind(
                     "WIDE_OR or OR or XOR",
                     expr_kind.as_str(),
-                    children[0].get_node_span(),
+                    children[0].get_node_start(),
                 )
             }
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("or_expr", token),
@@ -1108,7 +954,7 @@ impl AstBuilder {
                 ErrorBuilder::unexpected_token_kind(
                     "comparison operators",
                     expr_kind.as_str(),
-                    children[0].get_node_span(),
+                    children[0].get_node_start(),
                 )
             }
             ParserNode::Terminal(token) => {
@@ -1150,7 +996,7 @@ impl AstBuilder {
                 ErrorBuilder::unexpected_token_kind(
                     "PLUS or MINUS",
                     expr_kind.as_str(),
-                    children[0].get_node_span(),
+                    children[0].get_node_start(),
                 )
             }
             ParserNode::Terminal(token) => {
@@ -1194,7 +1040,7 @@ impl AstBuilder {
                 ErrorBuilder::unexpected_token_kind(
                     "ASTERISK or SLASH",
                     expr_kind.as_str(),
-                    children[0].get_node_span(),
+                    children[0].get_node_start(),
                 )
             }
             ParserNode::Terminal(token) => {
@@ -1241,7 +1087,7 @@ impl AstBuilder {
                 ErrorBuilder::unexpected_token_kind(
                     "NOT or MINUS or INVERSE or NEW",
                     children[0].get_node_kind().as_str(),
-                    children[0].get_node_span(),
+                    children[0].get_node_start(),
                 )
             }
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("unary_expr", token),
@@ -1266,7 +1112,7 @@ impl AstBuilder {
             given_node => ErrorBuilder::unexpected_syntax_node(
                 "FunctionCallExpression",
                 given_node.name(),
-                given_node.span(),
+                given_node.span().0,
             ),
         }
     }
@@ -1294,7 +1140,7 @@ impl AstBuilder {
                             node_kind => ErrorBuilder::unexpected_token_kind(
                                 "INCREMENT or DECREMENT",
                                 node_kind,
-                                children[1].get_node_span(),
+                                children[1].get_node_start(),
                             ),
                         }
                     }
@@ -1323,7 +1169,7 @@ impl AstBuilder {
                         ErrorBuilder::unexpected_token_kind(
                             "primary_expr",
                             children[1].get_node_kind().as_str(),
-                            span,
+                            span.0,
                         )
                     }
                     4 => {
@@ -1351,10 +1197,10 @@ impl AstBuilder {
                         ErrorBuilder::unexpected_token_kind(
                             "primary_expr",
                             children[0].get_node_kind().as_str(),
-                            span,
+                            span.0,
                         )
                     }
-                    default => ErrorBuilder::unknown_rule_for("primary_expr", default, span),
+                    default => ErrorBuilder::unknown_rule_for("primary_expr", default, span.0),
                 }
             }
             ParserNode::Terminal(token) => {
@@ -1377,14 +1223,14 @@ impl AstBuilder {
                         other => ErrorBuilder::unexpected_token_kind(
                             "literal or array_def or IDENTIFIER",
                             other,
-                            span,
+                            span.0,
                         ),
                     };
                 } else if children.len() == 3 {
                     let item = children.remove(1);
                     return self.visit_expr(item);
                 }
-                ErrorBuilder::unknown_rule_for("primary_expr", children.len(), span)
+                ErrorBuilder::unknown_rule_for("primary_expr", children.len(), span.0)
             }
             ParserNode::Terminal(token) => {
                 ErrorBuilder::non_terminal_expected("primary_expr", token)
@@ -1407,7 +1253,7 @@ impl AstBuilder {
                     let elements = self.visit_expr_list(children.remove(1))?;
                     return Ok(ExpressionNode::ArrayDefinition { elements, span });
                 }
-                ErrorBuilder::unknown_rule_for("array_def", children.len(), span)
+                ErrorBuilder::unknown_rule_for("array_def", children.len(), span.0)
             }
             ParserNode::Terminal(token) => ErrorBuilder::non_terminal_expected("array_def", token),
         }
@@ -1448,10 +1294,10 @@ impl AstBuilder {
     }
     fn handle_scope_node(&self, node: ParserNode) -> Result<Vec<StatementNode>, AstBuilderError> {
         let node_kind = node.get_node_kind();
-        let node_span = node.get_node_span();
+        let node_start = node.get_node_start();
         match self.visit_scope_def(node)? {
             StatementNode::ScopeStatement { body, .. } => Ok(body),
-            _ => ErrorBuilder::unexpected_token_kind("scope_def", node_kind.as_str(), node_span),
+            _ => ErrorBuilder::unexpected_token_kind("scope_def", node_kind.as_str(), node_start),
         }
     }
     fn handle_optional_node(

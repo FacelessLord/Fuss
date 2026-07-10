@@ -1,5 +1,6 @@
 import "./math.fuss";
 
+
 func main(par1, par2, par3) {
     let a = 1;
     let b = 1;
