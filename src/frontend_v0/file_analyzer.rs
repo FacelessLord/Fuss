@@ -1,5 +1,7 @@
 use crate::frontend_v0::ast_builder::nodes::CodeNode;
-use crate::frontend_v0::ast_builder::visitors::{AstBuilder, AstBuilderError};
+use crate::frontend_v0::ast_builder::visitors::AstBuilder;
+use crate::frontend_v0::errors::ast_errors::AstBuilderError;
+use crate::frontend_v0::errors::common::MessageFactory;
 use crate::frontend_v0::lexer::common::lexer::{Lexer, LexerError};
 use crate::frontend_v0::lexer::regex_lexer::{RegexLexer, create_regex_lexer_from_grammar};
 use crate::frontend_v0::parser::lr1_automata_builder::build_lr1_parser;
@@ -16,15 +18,38 @@ pub enum FileAnalyzerError {
     AstBuilderErrors(Vec<AstBuilderError>),
 }
 
-// TODO normal error formatting
+impl FileAnalyzerError {
+    fn get_inner_message(&self) -> String {
+        match self {
+            FileAnalyzerError::IoError(err) => format!("{err}"),
+            FileAnalyzerError::LexerErrors(err) => err
+                .iter()
+                .map(|x| x.get_message())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            FileAnalyzerError::ParserErrors(err) => err
+                .iter()
+                .map(|x| x.get_message())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            FileAnalyzerError::AstBuilderErrors(err) => err
+                .iter()
+                .map(|x| x.get_message())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        }
+    }
+}
+
+impl MessageFactory for FileAnalyzerError {
+    fn get_message(&self) -> String {
+        self.get_inner_message()
+    }
+}
+
 impl Debug for FileAnalyzerError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FileAnalyzerError::IoError(err) => err.fmt(f),
-            FileAnalyzerError::LexerErrors(err) => err.fmt(f),
-            FileAnalyzerError::ParserErrors(err) => err.fmt(f),
-            FileAnalyzerError::AstBuilderErrors(err) => err.fmt(f),
-        }
+        write!(f, "{}", self.get_inner_message())
     }
 }
 

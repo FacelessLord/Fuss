@@ -1,7 +1,7 @@
 use crate::frontend_v0::ast_builder::nodes::{CodeNode, ExpressionNode, StatementNode};
-use crate::frontend_v0::ast_builder::visitors::{AstBuilderError, ErrorBuilder, first_err};
 use crate::frontend_v0::file_analyzer::{FileAnalyzer, FileAnalyzerError};
 use std::collections::{HashMap, VecDeque};
+use crate::frontend_v0::errors::ast_errors::{AstBuilderError, ErrorBuilder};
 
 struct ProjectReader {
     file_analyzer: FileAnalyzer,
@@ -44,8 +44,6 @@ impl ProjectReader {
                             }
                         }
                     }
-                    // TODO more error control
-                    // FileAnalyzerError::AstBuilderErrors(errors);
 
                     file_cache.insert(path, Ok(ast));
                 }
@@ -59,7 +57,6 @@ impl ProjectReader {
     }
 }
 
-
 fn get_imported_file_path(node: StatementNode) -> Result<String, AstBuilderError> {
     if let StatementNode::ImportStatement {
         imported_file_name, ..
@@ -71,10 +68,10 @@ fn get_imported_file_path(node: StatementNode) -> Result<String, AstBuilderError
             ErrorBuilder::unexpected_syntax_node(
                 "StringLiteral",
                 imported_file_name.name(),
-                imported_file_name.span(),
+                imported_file_name.span().0,
             )
         }
     } else {
-        ErrorBuilder::unexpected_syntax_node("StringLiteral", node.name(), node.span())
+        ErrorBuilder::unexpected_syntax_node("StringLiteral", node.name(), node.span().0)
     }
 }

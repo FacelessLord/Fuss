@@ -1,4 +1,5 @@
 use crate::char_len;
+pub(crate) use crate::frontend_v0::errors::lexer_errors::LexerError;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone)]
@@ -58,29 +59,8 @@ impl Token {
     }
 }
 
-#[derive(Debug)]
-pub struct LexerError {
-    position: Position,
-    message: String,
-}
-
-impl LexerError {
-    pub fn get_message(&self) -> String {
-        format!(
-            "{message} at {file}:{line}:{column}",
-            message = self.message,
-            file = self.position.filename,
-            line = self.position.line,
-            column = self.position.column
-        )
-    }
-
-    pub fn new(message: String, position: Position) -> LexerError {
-        LexerError { position, message }
-    }
-}
-pub trait Lexer {
-    fn tokenize(&self, filename: &String, file: String) -> (Vec<Token>, Vec<LexerError>);
-}
-
 pub const EOF: &str = "EOF";
+
+pub trait Lexer {
+    fn tokenize(&mut self, filename: &String, file: String) -> (Vec<Token>, Vec<LexerError>);
+}
